@@ -218,7 +218,8 @@ async def pullupdate(interaction: discord.Interaction):
             
             await interaction.followup.send("Update pulled successfully!", ephemeral=True)
             await interaction.followup.send("Restarting the bot...", ephemeral=True)
-            os.execv(sys.executable, ['python'] + sys.argv)
+            await bot.close()
+            os.system('python main.py')
         except subprocess.CalledProcessError as e:
             await interaction.followup.send(f"Failed to pull update: {e}", ephemeral=True)
         except ValueError as e:
