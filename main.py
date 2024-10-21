@@ -13,7 +13,7 @@ intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 banlist = TinyDB('banlist.json')
 User = Query()
-Testing = True
+Testing = False
 
 def error(f):
     catrequest = requests.get('https://api.thecatapi.com/v1/images/search')
