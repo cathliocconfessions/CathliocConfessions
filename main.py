@@ -229,4 +229,8 @@ async def pullupdate(interaction: discord.Interaction):
 
 print("sig")
 
-bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
+
+if not Testing:
+    bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
+else:
+    bot.run('MTE0MzUxOTM0MjQ5NjA1OTU3Mw.GLQ5Jg.MFDbGe6-m4jgyxp9f9gKJE8ei7YJZbI-sMiP6U')
