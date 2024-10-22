@@ -12,8 +12,9 @@ from tinydb import TinyDB, Query
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 banlist = TinyDB('banlist.json')
+economy = TinyDB('economy.json')
 User = Query()
-Testing = False
+
 
 def error(f):
     catrequest = requests.get('https://api.thecatapi.com/v1/images/search')
@@ -50,6 +51,7 @@ async def ping(interaction: discord.Interaction):
         embed = discord.Embed(colour=0x313338, color=0x313338, title="The bot is working normally.", type='rich', url=None, description=f'The bot is working. Please check the discord server for announcements or downtime!', timestamp=None)
         embed.add_field(name="Current ping ✅", value=f'{ping}ms', inline=True)
         await interaction.response.send_message(embed=embed)
+
 
 
 class ConfessionView(View):
@@ -229,6 +231,7 @@ async def pullupdate(interaction: discord.Interaction):
 
 print("boutta bomb a plane brb")
 
+Testing = False 
 if not Testing:
     bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
 else:
