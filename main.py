@@ -201,25 +201,34 @@ async def confessbanlist(interaction: discord.Interaction):
     else:
         await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
 
-@bot.tree.command(name="pullupdate", description="Pulls an update from github - Silver only")
+@bot.tree.command(name="pullupdate", description="Pulls an update from GitHub - Silver only")
 async def pullupdate(interaction: discord.Interaction):
-    if interaction.user.id == 970493985053356052:
+    if interaction.user.id == 970493985053356052:  # Replace with the actual ID
         await interaction.response.send_message("Pulling update from GitHub...", ephemeral=True)
         
-        # Use subprocess to run Git commands
         try:
-            # Set the GitHub token as an environment variable
-            github_token = "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"
+            github_token = "your_github_token_here"  # Replace with your GitHub token
             if not github_token:
                 raise ValueError("GitHub token not found in environment variables.")
             
-            # Configure Git to use the token for authentication
             repo_url = f"https://{github_token}:x-oauth-basic@github.com/banana-man10/CathliocConfessions.git"
+            repo_dir = "CathliocConfessions"  # Directory where the repo should be cloned
+            
+            # Check if the repo directory exists
+            if not os.path.exists(repo_dir):
+                # Clone the repository if it doesn't exist
+                subprocess.run(["git", "clone", repo_url, repo_dir], check=True)
+            
+            # Change to the repo directory
+            os.chdir(repo_dir)
+            
+            # Set the remote URL
             subprocess.run(["git", "remote", "set-url", "origin", repo_url], check=True)
+            
+            # Pull the latest changes
             subprocess.run(["git", "pull", "origin", "main"], check=True)
             
-            await interaction.followup.send("Update pulled successfully!", ephemeral=True)
-            await interaction.followup.send("Restarting the bot...", ephemeral=True)
+            await interaction.followup.send("Update pulled successfully! Restarting the bot...", ephemeral=True)
             await bot.close()
             os.system('python main.py')
         except subprocess.CalledProcessError as e:
@@ -227,7 +236,7 @@ async def pullupdate(interaction: discord.Interaction):
         except ValueError as e:
             await interaction.followup.send(str(e), ephemeral=True)
     else:
-        await interaction.response.send_message("you are not silver bro", ephemeral=True)
+        await interaction.response.send_message("you arent silver bro", ephemeral=True)
 
 print("boutta bomb a plane brb")
 
