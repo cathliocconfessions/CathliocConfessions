@@ -232,10 +232,17 @@ async def pullupdate(interaction: discord.Interaction):
 
 @bot.tree.command(name="migrate", description="requests a migration from Your Currency in the old bot to this bot")
 @app_commands.describe(img="A screenshot showing your old currency balance")
-async def pullupdate(interaction: discord.Interaction, img: discord.File):
+async def ecomigrate(interaction: discord.Interaction, img: discord.Attachment):
     await interaction.response.send_message("Dmed Silverstero with your info. He may take a bit to approve your request", ephemeral=True)
     await send_dm(970493985053356052, f"{interaction.user.name} has requested a migration. Here is the image of their old currency balance: {img.url}")
     await economy.insert({'userid': interaction.user.id, 'balance': 0})
+
+
+@bot.tree.command(name="balance", description="Check your balance")
+async def ecobalance(interaction: discord.Interaction):
+    balance = economy.get(User.userid == interaction.user.id)['balance']
+    await interaction.response.send_message(f"Your balance is {balance}", ephemeral=True)
+
 Testing = True 
 if not Testing:
     bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
