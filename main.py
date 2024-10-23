@@ -1,4 +1,5 @@
 import os
+import io
 import subprocess
 import sys
 import discord
@@ -229,9 +230,13 @@ async def pullupdate(interaction: discord.Interaction):
     else:
         await interaction.response.send_message("you are not silver bro", ephemeral=True)
 
-print("boutta bomb a plane brb")
-
-Testing = False 
+@bot.tree.command(name="migrate", description="requests a migration from Your Currency in the old bot to this bot")
+@app_commands.describe(img="A screenshot showing your old currency balance")
+async def pullupdate(interaction: discord.Interaction, img: discord.File):
+    await interaction.response.send_message("Dmed Silverstero with your info. He may take a bit to approve your request", ephemeral=True)
+    await send_dm(970493985053356052, f"{interaction.user.name} has requested a migration. Here is the image of their old currency balance: {img.url}")
+    await economy.insert({'userid': interaction.user.id, 'balance': 0})
+Testing = True 
 if not Testing:
     bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
 else:
