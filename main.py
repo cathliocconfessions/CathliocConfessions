@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ui import Button, View
 import requests
 import json
+import secrets
 from tinydb import TinyDB, Query
 
 intents = discord.Intents.default()
@@ -140,6 +141,43 @@ class ConfessionView(View):
 
         await interaction.response.send_modal(RejectionAndBanModal())
 
+class migratesuccess(discord.ui.View):
+    @discord.ui.button(label="Approve", style=discord.ButtonStyle.danger)
+    async def Approve(self, interaction: discord.Interaction, button: Button):
+        class BalanceModal(discord.ui.Modal):
+            def __init__(self):
+                super().__init__(title="Enter the balance of the old user")
+                self.balance = discord.ui.TextInput(label="Enter the balance of the old user", placeholder="Enter the balance of the old user", min_length=1, max_length=1000)
+                self.add_item(self.balance)
+
+            async def on_submit(self, interaction: discord.Interaction):
+                economy.update({'balance': int(self.balance.value)}, User.userid == interaction.user.id)
+                await interaction.response.edit_message(view=None)
+                await interaction.followup.send(f"User has been migrated with a balance of {self.balance.value}", ephemeral=True)
+                user = await bot.fetch_user(interaction.user.id)
+                economy.update({'balance': int(self.balance.value)}, User.userid == interaction.user.id)
+                await user.send(f"Your migration has been approved! You have been granted {self.balance.value} NRK bucks")
+
+        await interaction.response.send_modal(BalanceModal())
+    
+    @discord.ui.button(label="Reject", style=discord.ButtonStyle.danger)
+    async def Reject(self, interaction: discord.Interaction, button: Button):
+        class RejectionModal(discord.ui.Modal):
+            def __init__(self):
+                super().__init__(title="Rejection Reason")
+                self.reason = discord.ui.TextInput(label="Reason for rejection", placeholder="Enter the reason for rejection", min_length=1, max_length=1000)
+                self.add_item(self.reason)
+
+            async def on_submit(self, interaction: discord.Interaction):
+                await interaction.response.edit_message(view=None)
+                await interaction.followup.send("Migration has been rejected", ephemeral=True)
+                user = await bot.fetch_user(interaction.user.id)
+                await user.send(f"Your migration has been rejected reason: {self.reason.value}")
+
+        await interaction.response.send_modal(RejectionModal())
+
+
+        
 
 @bot.tree.command(name="confess", description="Confess something anonymously")
 @app_commands.describe(message="The message you want to confess")
@@ -250,8 +288,10 @@ async def pullupdate(interaction: discord.Interaction):
 @app_commands.describe(img="A screenshot showing your old currency balance")
 async def ecomigrate(interaction: discord.Interaction, img: discord.Attachment):
     await interaction.response.send_message("Dmed Silverstero with your info. He may take a bit to approve your request", ephemeral=True)
-    await send_dm(970493985053356052, f"{interaction.user.name} has requested a migration. Here is the image of their old currency balance: {img.url}")
-    await economy.insert({'userid': interaction.user.id, 'balance': 0})
+    user = await bot.fetch_user(970493985053356052)
+    if user:
+        await user.send(f"{interaction.user.name} has requested a migration. Please approve or reject it {img.url}", view=migratesuccess())
+    economy.insert({'userid': interaction.user.id, 'balance': 0})
 
 
 @bot.tree.command(name="balance", description="Check your balance")
@@ -264,14 +304,49 @@ async def ecobalance(interaction: discord.Interaction):
 @app_commands.describe(amount="the money of amount you give want")
 async def ecogive(interaction: discord.Interaction, user: discord.User, amount: int):
     createuseraccount(interaction.user.id, interaction)
-    if economy.get(User.userid == interaction.user.id)['balance'] >= amount:
-        await interaction.response.send_message(f"you have enough to send to {user.name}! sending money", ephemeral=True)
-        if not economy.search(User.userid == user.id):
-            await interaction.followup.send(f"User doesn't have an account! Creating one for user", ephemeral=True)
-            createuseraccount(user.id, interaction)
-        economy.update({'balance': economy.get(User.userid == interaction.user.id)['balance'] - amount}, User.userid == interaction.user.id)
-        economy.update({'balance': economy.get(User.userid == user.id)['balance'] + amount}, User.userid == user.id)
-        await interaction.followup.send(f"Sent {amount} to {user.name}!", ephemeral=True)
+    createuseraccount(user, interaction)
+    interactionusermoney = economy.get(User.userid == interaction.user.id)['balance']
+    recievermoney = economy.get(User.userid == user.id)['balance']
+    if interactionusermoney >= amount:
+        economy.update({'balance': interactionusermoney - amount}, User.userid == interaction.user.id)
+        economy.update({'balance': recievermoney + amount}, User.userid == user.id)
+        await interaction.response.send_message(f"You gave {amount} NRK bucks to {user.name}", ephemeral=True)
+    else:
+        await interaction.response.send_message("You do not have enough money to give", ephemeral=True)
+
+@bot.tree.command(name="add", description="add NRK bucks to a user - silver only")
+@app_commands.describe(user="the money you want user add")
+@app_commands.describe(amount="the money of amount you add")
+async def ecoadd(interaction: discord.Interaction, user: discord.User, amount: int):
+    if interaction.user.id == 970493985053356052:
+        createuseraccount(user, interaction)
+        recievermoney = economy.get(User.userid == user.id)['balance']
+        economy.update({'balance': recievermoney + amount}, User.userid == user.id)
+        await interaction.response.send_message(f"You added {amount} NRK bucks to {user.name}", ephemeral=True)
+    else:
+        await interaction.response.send_message("You are not silver", ephemeral=True)
+
+@bot.tree.command(name="work", description="work for money")
+@commands.cooldown(1, 300, commands.BucketType.user)  
+async def ecowork(interaction: discord.Interaction):
+    createuseraccount(interaction.user.id, interaction)
+    random_number = secrets.randbelow(301) + 200
+
+    economy.update({'balance': economy.get(User.userid == interaction.user.id)['balance'] + random_number}, User.userid == interaction.user.id)
+    await interaction.response.send_message(f"You worked and got {random_number} NRK bucks", ephemeral=True)
+
+@ecowork.error
+async def ecowork_error(interaction: discord.Interaction, error: commands.CommandError):
+    if isinstance(error, commands.CommandOnCooldown):
+        await interaction.response.send_message(f"You worked already! work after {int(error.retry_after)} seconds.", ephemeral=True)
+    else:
+        raise error
+
+## @bot.tree.command(name="welfare", description="signup for welfare") work on later im going to bed
+
+
+
+
 Testing = True 
 if not Testing:
     bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
