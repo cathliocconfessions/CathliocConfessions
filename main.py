@@ -1,4 +1,5 @@
 import os
+import io
 import subprocess
 import sys
 import discord
@@ -15,6 +16,13 @@ banlist = TinyDB('banlist.json')
 economy = TinyDB('economy.json')
 User = Query()
 
+def createuseraccount(userid, interaction):
+        if not economy.search(User.userid == User.id):
+            interaction.response.send_message("You do not have an account! creating one right now...", ephemeral=True)
+            createuseraccount(User.id)
+            interaction.followup.send("Account has been created. Granting you 1000 NRK dollars", ephemeral=True)
+            economy.update({'balance': 1000}, User.userid == User.id)
+            interaction.followup.send(f"Account created and you now have 1000 NRK dollars", ephemeral=True)
 
 def error(f):
     catrequest = requests.get('https://api.thecatapi.com/v1/images/search')
@@ -238,9 +246,33 @@ async def pullupdate(interaction: discord.Interaction):
     else:
         await interaction.response.send_message("you arent silver bro", ephemeral=True)
 
-print("boutta bomb a plane brb")
+@bot.tree.command(name="migrate", description="requests a migration from Your Currency in the old bot to this bot")
+@app_commands.describe(img="A screenshot showing your old currency balance")
+async def ecomigrate(interaction: discord.Interaction, img: discord.Attachment):
+    await interaction.response.send_message("Dmed Silverstero with your info. He may take a bit to approve your request", ephemeral=True)
+    await send_dm(970493985053356052, f"{interaction.user.name} has requested a migration. Here is the image of their old currency balance: {img.url}")
+    await economy.insert({'userid': interaction.user.id, 'balance': 0})
 
-Testing = False 
+
+@bot.tree.command(name="balance", description="Check your balance")
+async def ecobalance(interaction: discord.Interaction):
+    balance = economy.get(User.userid == interaction.user.id)['balance']
+    await interaction.response.send_message(f"Your balance is {balance}", ephemeral=True)
+
+@bot.tree.command(name="give", description="gives a user some of your NRK bucks")
+@app_commands.describe(user="the money you want user give")
+@app_commands.describe(amount="the money of amount you give want")
+async def ecogive(interaction: discord.Interaction, user: discord.User, amount: int):
+    createuseraccount(interaction.user.id, interaction)
+    if economy.get(User.userid == interaction.user.id)['balance'] >= amount:
+        await interaction.response.send_message(f"you have enough to send to {user.name}! sending money", ephemeral=True)
+        if not economy.search(User.userid == user.id):
+            await interaction.followup.send(f"User doesn't have an account! Creating one for user", ephemeral=True)
+            createuseraccount(user.id, interaction)
+        economy.update({'balance': economy.get(User.userid == interaction.user.id)['balance'] - amount}, User.userid == interaction.user.id)
+        economy.update({'balance': economy.get(User.userid == user.id)['balance'] + amount}, User.userid == user.id)
+        await interaction.followup.send(f"Sent {amount} to {user.name}!", ephemeral=True)
+Testing = True 
 if not Testing:
     bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
 else:
