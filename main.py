@@ -255,7 +255,7 @@ async def pullupdate(interaction: discord.Interaction):
         await interaction.response.send_message("Pulling update from GitHub...", ephemeral=True)
         
         try:
-            github_token = os.getenv("GITHUB_TOKEN")  # Ensure your GitHub token is set in environment variables
+            github_token = "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"  # Ensure your GitHub token is set in environment variables
             if not github_token:
                 raise ValueError("GitHub token not found in environment variables.")
             
@@ -285,10 +285,6 @@ async def pullupdate(interaction: discord.Interaction):
             await interaction.followup.send(str(e), ephemeral=True)
     else:
         await interaction.response.send_message("you arent silver bro", ephemeral=True)
-        except subprocess.CalledProcessError as e:
-            await interaction.followup.send(f"Failed to pull update: {e}", ephemeral=True)
-        except ValueError as e:
-            await interaction.followup.send(str(e), ephemeral=True)
     else:
         await interaction.response.send_message("you arent silver bro", ephemeral=True)
 
