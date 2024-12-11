@@ -362,7 +362,7 @@ async def spotifywrappedmeme(interaction: discord.Interaction, video: discord.At
 
 
 
-Testing = True
+Testing = False
 if not Testing:
     bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
 else:
