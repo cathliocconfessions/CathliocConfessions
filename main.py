@@ -285,8 +285,6 @@ async def pullupdate(interaction: discord.Interaction):
             await interaction.followup.send(str(e), ephemeral=True)
     else:
         await interaction.response.send_message("you arent silver bro", ephemeral=True)
-    else:
-        await interaction.response.send_message("you arent silver bro", ephemeral=True)
 
 @bot.tree.command(name="migrate", description="requests a migration from Your Currency in the old bot to this bot")
 @app_commands.describe(img="A screenshot showing your old currency balance")
