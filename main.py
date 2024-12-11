@@ -6,10 +6,12 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from discord.ui import Button, View
+import ffmpeg
 import requests
 import json
 import secrets
 from tinydb import TinyDB, Query
+from memegen import spotifywrappedmemegen
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -253,7 +255,7 @@ async def pullupdate(interaction: discord.Interaction):
         await interaction.response.send_message("Pulling update from GitHub...", ephemeral=True)
         
         try:
-            github_token = "your_github_token_here"  # Replace with your GitHub token
+            github_token = os.getenv("GITHUB_TOKEN")  # Ensure your GitHub token is set in environment variables
             if not github_token:
                 raise ValueError("GitHub token not found in environment variables.")
             
@@ -276,7 +278,13 @@ async def pullupdate(interaction: discord.Interaction):
             
             await interaction.followup.send("Update pulled successfully! Restarting the bot...", ephemeral=True)
             await bot.close()
-            os.system('python main.py')
+            os.execv(sys.executable, ['python'] + sys.argv)
+        except subprocess.CalledProcessError as e:
+            await interaction.followup.send(f"Failed to pull update: {e}", ephemeral=True)
+        except ValueError as e:
+            await interaction.followup.send(str(e), ephemeral=True)
+    else:
+        await interaction.response.send_message("you arent silver bro", ephemeral=True)
         except subprocess.CalledProcessError as e:
             await interaction.followup.send(f"Failed to pull update: {e}", ephemeral=True)
         except ValueError as e:
@@ -342,12 +350,25 @@ async def ecowork_error(interaction: discord.Interaction, error: commands.Comman
     else:
         raise error
 
+@bot.tree.command(name="spotifywrappedmeme", description="combies a part of spotifywrapped with your own video")
+@app_commands.describe(video="The video you want to use")
+async def spotifywrappedmeme(interaction: discord.Interaction, video: discord.Attachment):
+    await interaction.response.send_message("Creating your meme...", ephemeral=True)
+    spotifywrappedvideo = ffmpeg.input("Assets/lv_0_20241207120807_121217.mp4")
+    memevideo = ffmpeg.input(video)
+    ffmpeg.concat(spotifywrappedvideo, memevideo, v=1, a=1).output("Assets/output.mp4").run()
+    print("Meme video created successfully")
+    await interaction.followup.send("Meme video created successfully", file=discord.File("Assets/output.mp4"), ephemeral=True)
+    
+
+
 ## @bot.tree.command(name="welfare", description="signup for welfare") work on later im going to bed
 
 
 
 
-Testing = True 
+
+Testing = True
 if not Testing:
     bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
 else:
