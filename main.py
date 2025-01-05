@@ -377,7 +377,8 @@ async def balance(interaction: discord.Interaction):
     # await interaction.response.send_message(f"You have {user_balance[0]} Dollars.")
 
 
-
+@bot.tree.command(name="coinflip", description="lets flip a coin err awh dang it err awh dang it err awh dangit")
+@app
 
 
 
