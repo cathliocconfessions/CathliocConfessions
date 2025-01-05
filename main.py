@@ -1,31 +1,39 @@
-import os
-import io
-import subprocess
-import sys
-import discord
-from discord.ext import commands
-from discord import app_commands
-from discord.ui import Button, View
-import ffmpeg
-import requests
 import json
-import secrets
-from tinydb import TinyDB, Query
-from memegen import spotifywrappedmemegen
+import random
+import re
+import dataset
+import discord
+import pafy
+import requests
+from discord import app_commands
+from discord.ext import commands
 
-intents = discord.Intents.default()
+COOKIES_FILE = "cookies.txt"
+
+queue = []
+pafy.set_api_key("AIzaSyBoAgLxws6dGmxUjttZyWZ_RK75kA5LU4U")
+onmessagedeletelist = ["bro forgot about digital footprint", "watch what you say next time!", "Your message cant be hidden from me", "yall screenshot this rq and post it to twitter.com", "nice try buddy boy", "you are gonna be haunted by this in the future", ]
+intents = discord.Intents.all()
+intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
-banlist = TinyDB('banlist.json')
-economy = TinyDB('economy.json')
-User = Query()
+db = dataset.connect('sqlite:///users.db')
+table = db['users']
 
-def createuseraccount(userid, interaction):
-        if not economy.search(User.userid == User.id):
-            interaction.response.send_message("You do not have an account! creating one right now...", ephemeral=True)
-            createuseraccount(User.id)
-            interaction.followup.send("Account has been created. Granting you 1000 NRK dollars", ephemeral=True)
-            economy.update({'balance': 1000}, User.userid == User.id)
-            interaction.followup.send(f"Account created and you now have 1000 NRK dollars", ephemeral=True)
+def play_next(vc):
+    if queue:
+        # Get the next song from the queue
+        next_song = queue.pop(0)  # Using the single queue
+        print(f"Playing next song from queue: {next_song}")
+
+        # Play the next song
+        vc.play(
+            discord.FFmpegPCMAudio(next_song),
+            after=lambda e: play_next(vc),
+        )
+    else:
+        # No more songs in the queue
+        print("Queue is empty. No more songs to play.")
+        return
 
 def error(f):
     catrequest = requests.get('https://api.thecatapi.com/v1/images/search')
@@ -57,313 +65,268 @@ async def ping(interaction: discord.Interaction):
     if ping > 100:
         embed = discord.Embed(colour=0x313338, color=0x313338, title="Bot may be having some problems", type='rich', url=None, description=f'The bot is having some latency issues.', timestamp=None)
         embed.add_field(name="Current ping ⛔", value=f'{ping}ms', inline=True)
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_mesesage(embed=embed)
     else:
         embed = discord.Embed(colour=0x313338, color=0x313338, title="The bot is working normally.", type='rich', url=None, description=f'The bot is working. Please check the discord server for announcements or downtime!', timestamp=None)
         embed.add_field(name="Current ping ✅", value=f'{ping}ms', inline=True)
         await interaction.response.send_message(embed=embed)
 
-
-
-class ConfessionView(View):
-
-    @discord.ui.button(label="Approve", style=discord.ButtonStyle.success)
-    async def approve_button(self, interaction: discord.Interaction, button: Button):
-        moderator = interaction.user
-        user = await bot.fetch_user(userid5)
-        if user:
-            await user.send("Your confession has been Approved! Check it out")
-        
-        channel_id = 1293598104175640617
-        channel = bot.get_channel(channel_id)
-        if channel:
-            await channel.send("Confession has been Approved")
-            await channel.send(f"{interaction.user.name} Approved the confession")
-
-        confesschannel = 1293597525785313320
-        confesschannel = bot.get_channel(confesschannel)
-        if confesschannel:  
-            embed = discord.Embed(colour=0x313338, color=0x313338, title="New Confession!", type='rich', url=None, description=f'{confession}', timestamp=None)
-            await confesschannel.send(embed=embed)
-        
-        # Disable buttons
-        await interaction.message.edit(view=None)
-
-    @discord.ui.button(label="Reject", style=discord.ButtonStyle.danger)
-    async def reject(self, interaction: discord.Interaction, button: Button):
-        class RejectionModal(discord.ui.Modal):
-            def __init__(self):
-                super().__init__(title="Rejection Reason")
-                self.reason = discord.ui.TextInput(label="Reason for rejection", placeholder="Enter the reason for rejection", min_length=1, max_length=1000)
-                self.add_item(self.reason)
-
-            async def on_submit(self, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=None)
-                moderator = interaction.user
-
-                user = await bot.fetch_user(userid5)
-                if user:
-                    await user.send(f"Your confession has been rejected for the following reason: {self.reason.value}")
-                
-                channel_id = 1293598104175640617
-                channel = bot.get_channel(channel_id)
-                if channel:
-                    await channel.send(f"Confession has been rejected for the following reason: {self.reason.value}")
-                    await channel.send(f"{interaction.user.name} rejected the confession")
-
-                # Disable buttons
-                await interaction.message.edit(view=None)
-
-        await interaction.response.send_modal(RejectionModal())
-
-    @discord.ui.button(label="Reject & ban", style=discord.ButtonStyle.danger)
-    async def reject_and_ban(self, interaction: discord.Interaction, button: Button):
-        class RejectionAndBanModal(discord.ui.Modal):
-            def __init__(self):
-                super().__init__(title="Rejection Reason")
-                self.reason = discord.ui.TextInput(label="Reason for rejection", placeholder="Enter the reason for rejection", min_length=1, max_length=1000)
-                self.add_item(self.reason)
-
-            async def on_submit(self, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=None)
-                moderator = interaction.user
-                user = await bot.fetch_user(userid5)
-                if user:
-                    await user.send(f"Your confession has been rejected and you have been banned for the following reason: {self.reason.value}")
-                
-                channel_id = 1293598104175640617
-                channel = bot.get_channel(channel_id)
-                if channel:
-                    banlist.insert({'userid': userid5})
-                    await channel.send(f"Confession has been rejected and user has been banned for the following reason: {self.reason.value}")
-                    await channel.send(f"{interaction.user.name} rejected the confession and banned the user")
-
-                # Disable buttons
-                await interaction.message.edit(view=None)
-
-        await interaction.response.send_modal(RejectionAndBanModal())
-
-class migratesuccess(discord.ui.View):
-    @discord.ui.button(label="Approve", style=discord.ButtonStyle.danger)
-    async def Approve(self, interaction: discord.Interaction, button: Button):
-        class BalanceModal(discord.ui.Modal):
-            def __init__(self):
-                super().__init__(title="Enter the balance of the old user")
-                self.balance = discord.ui.TextInput(label="Enter the balance of the old user", placeholder="Enter the balance of the old user", min_length=1, max_length=1000)
-                self.add_item(self.balance)
-
-            async def on_submit(self, interaction: discord.Interaction):
-                economy.update({'balance': int(self.balance.value)}, User.userid == interaction.user.id)
-                await interaction.response.edit_message(view=None)
-                await interaction.followup.send(f"User has been migrated with a balance of {self.balance.value}", ephemeral=True)
-                user = await bot.fetch_user(interaction.user.id)
-                economy.update({'balance': int(self.balance.value)}, User.userid == interaction.user.id)
-                await user.send(f"Your migration has been approved! You have been granted {self.balance.value} NRK bucks")
-
-        await interaction.response.send_modal(BalanceModal())
-    
-    @discord.ui.button(label="Reject", style=discord.ButtonStyle.danger)
-    async def Reject(self, interaction: discord.Interaction, button: Button):
-        class RejectionModal(discord.ui.Modal):
-            def __init__(self):
-                super().__init__(title="Rejection Reason")
-                self.reason = discord.ui.TextInput(label="Reason for rejection", placeholder="Enter the reason for rejection", min_length=1, max_length=1000)
-                self.add_item(self.reason)
-
-            async def on_submit(self, interaction: discord.Interaction):
-                await interaction.response.edit_message(view=None)
-                await interaction.followup.send("Migration has been rejected", ephemeral=True)
-                user = await bot.fetch_user(interaction.user.id)
-                await user.send(f"Your migration has been rejected reason: {self.reason.value}")
-
-        await interaction.response.send_modal(RejectionModal())
-
-
-        
-
-@bot.tree.command(name="confess", description="Confess something anonymously")
-@app_commands.describe(message="The message you want to confess")
-async def confess(interaction: discord.Interaction, message: str):
-    global userid5
-    userid5 = interaction.user.id
-
-    if not banlist.search(Query().userid == interaction.user.id):
-        username = interaction.user.name
-        global confession
-        confession = message
-        channel_id = 1293598104175640617
-        await interaction.response.send_message(f"Your confession has been sent for review. We will send you a DM if your confession gets approved or not. Thanks!", ephemeral=True)
-        embed = discord.Embed(colour=0x313338, color=0x313338, title="New Confession!", type= 'rich', url=None, description=f'{confession}', timestamp=None)
-        embed.add_field(name="User", value=f'{username}', inline=True)
-        embed.add_field(name="User ID", value=f'{userid5}', inline=True)
-        embed.add_field(name="Confession", value=f'{confession}', inline=False)
-        channel = bot.get_channel(channel_id)
-        if channel:
-            await channel.send(embed=embed, view=ConfessionView())
-    else:
-        await interaction.response.send_message("You have been banned from using the confession command.", ephemeral=True)
-
-@bot.tree.command(name="confessunban", description="Unban a user from using the confession command")
-@app_commands.describe(user="The user you want to unban")
-async def confessunban(interaction: discord.Interaction, user: discord.User):
-    if discord.utils.get(interaction.user.roles, name="ADMIN"):
-        userid = user.id
-        if banlist.search(User.userid == userid):  # Corrected search query
-            unbanneduser = banlist.get(User.userid == userid)
-            banlist.remove(User.userid == userid)  # Corrected remove query
-
-            await interaction.response.send_message(f"{unbanneduser} has been unbanned from using the confession command.", ephemeral=True)
-        else:
-            await interaction.response.send_message(f"this user is not banned from using the confession command.", ephemeral=True)
-    else:
-        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
-
-@bot.tree.command(name="confessban", description="Ban a user from using the confession command")
-@app_commands.describe(user="The user you want to ban")
-async def confessban(interaction: discord.Interaction, user: discord.User):
-    interaction.guild.get_member(interaction.user.id)
-    if discord.utils.get(interaction.user.roles, name="ADMIN"):
-        userid = user.id
-        if not banlist.search(User.userid == user.id):
-            banlist.insert({'userid': userid})
-
-            await interaction.response.send_message(f"{userid} has been banned from using the confession command.", ephemeral=True)
-        else:
-            await interaction.response.send_message(f"this user is already banned from using the confession command.", ephemeral=True)
-    else:
-        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
-
-@bot.tree.command(name="confessbanlist", description="List all banned users from using the confession command")
-async def confessbanlist(interaction: discord.Interaction):
-    interaction.guild.get_member(interaction.user.id)
-    if discord.utils.get(interaction.user.roles, name="ADMIN"):
-        bannedusers = banlist.all()
-        if bannedusers:
-            message = "List of all banned users from using the confession command:\n"
-            for user in bannedusers:
-                user_obj = await bot.fetch_user(user["userid"])
-                message += f"- {user_obj.name}#{user_obj.discriminator} (ID: {user['userid']})\n"
-            await interaction.response.send_message(message, ephemeral=True)
-        else:
-            await interaction.response.send_message("There are no banned users from using the confession command.", ephemeral=True)
-    else:
-        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
-
-@bot.tree.command(name="pullupdate", description="Pulls an update from GitHub - Silver only")
-async def pullupdate(interaction: discord.Interaction):
-    if interaction.user.id == 970493985053356052:  # Replace with the actual ID
-        await interaction.response.send_message("Pulling update from GitHub...", ephemeral=True)
-        
-        try:
-            github_token = "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"  # Ensure your GitHub token is set in environment variables
-            if not github_token:
-                raise ValueError("GitHub token not found in environment variables.")
-            
-            repo_url = f"https://{github_token}:x-oauth-basic@github.com/banana-man10/CathliocConfessions.git"
-            repo_dir = "CathliocConfessions"  # Directory where the repo should be cloned
-            
-            # Check if the repo directory exists
-            if not os.path.exists(repo_dir):
-                # Clone the repository if it doesn't exist
-                subprocess.run(["git", "clone", repo_url, repo_dir], check=True)
-            
-            # Change to the repo directory
-            os.chdir(repo_dir)
-            
-            # Set the remote URL
-            subprocess.run(["git", "remote", "set-url", "origin", repo_url], check=True)
-            
-            # Pull the latest changes
-            subprocess.run(["git", "pull", "origin", "main"], check=True)
-            
-            await interaction.followup.send("Update pulled successfully! Restarting the bot...", ephemeral=True)
-            await bot.close()
-            os.execv(sys.executable, ['python'] + sys.argv)
-        except subprocess.CalledProcessError as e:
-            await interaction.followup.send(f"Failed to pull update: {e}", ephemeral=True)
-        except ValueError as e:
-            await interaction.followup.send(str(e), ephemeral=True)
-    else:
-        await interaction.response.send_message("you arent silver bro", ephemeral=True)
-
-@bot.tree.command(name="migrate", description="requests a migration from Your Currency in the old bot to this bot")
-@app_commands.describe(img="A screenshot showing your old currency balance")
-async def ecomigrate(interaction: discord.Interaction, img: discord.Attachment):
-    await interaction.response.send_message("Dmed Silverstero with your info. He may take a bit to approve your request", ephemeral=True)
-    user = await bot.fetch_user(970493985053356052)
-    if user:
-        await user.send(f"{interaction.user.name} has requested a migration. Please approve or reject it {img.url}", view=migratesuccess())
-    economy.insert({'userid': interaction.user.id, 'balance': 0})
-
-
-@bot.tree.command(name="balance", description="Check your balance")
-async def ecobalance(interaction: discord.Interaction):
-    balance = economy.get(User.userid == interaction.user.id)['balance']
-    await interaction.response.send_message(f"Your balance is {balance}", ephemeral=True)
-
-@bot.tree.command(name="give", description="gives a user some of your NRK bucks")
-@app_commands.describe(user="the money you want user give")
-@app_commands.describe(amount="the money of amount you give want")
-async def ecogive(interaction: discord.Interaction, user: discord.User, amount: int):
-    createuseraccount(interaction.user.id, interaction)
-    createuseraccount(user, interaction)
-    interactionusermoney = economy.get(User.userid == interaction.user.id)['balance']
-    recievermoney = economy.get(User.userid == user.id)['balance']
-    if interactionusermoney >= amount:
-        economy.update({'balance': interactionusermoney - amount}, User.userid == interaction.user.id)
-        economy.update({'balance': recievermoney + amount}, User.userid == user.id)
-        await interaction.response.send_message(f"You gave {amount} NRK bucks to {user.name}", ephemeral=True)
-    else:
-        await interaction.response.send_message("You do not have enough money to give", ephemeral=True)
-
-@bot.tree.command(name="add", description="add NRK bucks to a user - silver only")
-@app_commands.describe(user="the money you want user add")
-@app_commands.describe(amount="the money of amount you add")
-async def ecoadd(interaction: discord.Interaction, user: discord.User, amount: int):
+@bot.tree.command(name="register", description="Register a user, Silver only")
+@app_commands.commands.describe(user="The user to Register")
+async def register(interaction: discord.Interaction, user: discord.User = None):
     if interaction.user.id == 970493985053356052:
-        createuseraccount(user, interaction)
-        recievermoney = economy.get(User.userid == user.id)['balance']
-        economy.update({'balance': recievermoney + amount}, User.userid == user.id)
-        await interaction.response.send_message(f"You added {amount} NRK bucks to {user.name}", ephemeral=True)
+        guild = interaction.guild
+        username = user.name
+        user_id = user.id
+        displayname = user.display_name
+
+        # Fetch member object and check for booster status
+        member = guild.get_member(user.id)
+        if member in guild.premium_subscribers:
+            donated = True
+        else:
+            donated = False
+
+        # Upsert or Update logic
+        table.upsert(
+            {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, 'cusses': 0 },
+            ['user_id']  # Use 'user_id' as the unique key
+        )
+
+        await interaction.response.send_message(f"User {username}'s database record has been or added!")
+
+@bot.tree.command(name="lookup", description="Lookup a user. (silver only)")
+@app_commands.commands.describe(user="The user to lookup")
+async def lookup(interaction: discord.Interaction, user: discord.User = None):
+    if interaction.user.id == 970493985053356052:
+        user_id = interaction.user.id
+        userdata = table.find_one(user_id=user.id)
+        if not userdata:
+            await interaction.response.send_message(f" {user.name} not found in the database!")
+            return
+        else:
+            await interaction.response.send_message(f"User data: {userdata}")
+
+
+@bot.tree.command(name="fix", description="Fixes someone's query in the database. This might lag, so silver only 😘")
+@app_commands.describe(user="The user to fix")
+async def fixdb(interaction: discord.Interaction, user: discord.User = None):
+    if interaction.user.id == 970493985053356052:
+        guild = interaction.guild
+        username = user.name
+        user_id = user.id
+        displayname = user.display_name
+
+        # Fetch member object and check for booster status
+        member = guild.get_member(user.id)
+        if member.bot:
+            return
+
+        if member in guild.premium_subscribers:
+            donated = True
+        else:
+            donated = False
+
+        # Upsert or Update logic
+        table.upsert(
+            {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname},
+            ['user_id']  # Use 'user_id' as the unique key
+        )
+
+        await interaction.response.send_message(f"User {username}'s database record has been fixed (or added)!")
     else:
-        await interaction.response.send_message("You are not silver", ephemeral=True)
+        await interaction.response.send_message(f"You are not allowed to use this command!")
 
-@bot.tree.command(name="work", description="work for money")
-@commands.cooldown(1, 300, commands.BucketType.user)  
-async def ecowork(interaction: discord.Interaction):
-    createuseraccount(interaction.user.id, interaction)
-    random_number = secrets.randbelow(301) + 200
+@bot.tree.command(name="add_all_to_db", description="Adds all members of the guild to the database.")
+async def add_all_to_db(interaction: discord.Interaction):
+    if not interaction.user.id == 970493985053356052:
+        await interaction.response.send_message("You do not have permission to use this command!", ephemeral=True)
+        return
 
-    economy.update({'balance': economy.get(User.userid == interaction.user.id)['balance'] + random_number}, User.userid == interaction.user.id)
-    await interaction.response.send_message(f"You worked and got {random_number} NRK bucks", ephemeral=True)
-
-@ecowork.error
-async def ecowork_error(interaction: discord.Interaction, error: commands.CommandError):
-    if isinstance(error, commands.CommandOnCooldown):
-        await interaction.response.send_message(f"You worked already! work after {int(error.retry_after)} seconds.", ephemeral=True)
     else:
-        raise error
+        guild = interaction.guild
 
-@bot.tree.command(name="spotifywrappedmeme", description="combies a part of spotifywrapped with your own video")
-@app_commands.describe(video="The video you want to use")
-async def spotifywrappedmeme(interaction: discord.Interaction, video: discord.Attachment):
-    await interaction.response.send_message("Creating your meme...", ephemeral=True)
-    spotifywrappedvideo = ffmpeg.input("Assets/lv_0_20241207120807_121217.mp4")
-    memevideo = ffmpeg.input(video)
-    ffmpeg.concat(spotifywrappedvideo, memevideo, v=1, a=1).output("Assets/output.mp4").run()
-    print("Meme video created successfully")
-    await interaction.followup.send("Meme video created successfully", file=discord.File("Assets/output.mp4"), ephemeral=True)
-    
+        for member in guild.members:
+                username = member.name
+                user_id = member.id
+                timefuck = 0
+                timeshit = 0
+                timeni = 0
+                timefa = 0
+                timebitch = 0
+                displayname = member.display_name
+                if member in guild.premium_subscribers:
+                    donated = True
+                else:
+                    donated = False
+
+                table.upsert(
+                    {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, "timefuck": timefuck, "timeshit": timeshit, "timeni": timeni, "timefa": timefa, "timebitch": timebitch },
+                    ['user_id']  # Use 'user_id' as the unique key
+                )
+
+    await interaction.response.send_message("all of the users have been added to the db")
+
+@bot.event
+async def on_member_join(member):
+    username = member.name
+    user_id = member.id
+    displayname = member.display_name
+    donated = False
+    table.upsert(
+        {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, "timefuck": 0,
+         "timeshit": 0, "timeni": 0, "timefa": 0, "timebitch": 0},
+        ['user_id']  # Use 'user_id' as the unique key
+    )
+
+@bot.tree.command(name="fishjoke", description="Generates a random fish pun.")
+async def fishpun(interaction: discord.Interaction):
+    fish_puns = [
+        "Looks like you’re cod-ing something fishy here.",
+        "You’re so fin-tastic for asking—I can tuna my response any way you’d like!",
+        "Let’s not carp about it and dive straight in.",
+        "I’m hooked on helping you out with puns; I’ll tackle this line by line!",
+        "Gill-ty as charged, this is going to be a pun-filled response.",
+        "I’m not clowning around—this is a reel opportunity to help.",
+        "Don’t trout yourself, you’ve got this!",
+        "Want me to bait some more ideas? Just ask.",
+        "I’m here to sea things through for you.",
+        "This whole conversation is finsane, but I’m still on board.",
+        "If you’re feeling eel-y overwhelmed, I can lighten the load.",
+        "Let minnow if you need more help—don’t just flounder around.",
+        "Keep your friends close but your anemones closer!",
+        "Whale, this is a whale-y fun conversation so far.",
+        "I krill-ly appreciate you dropping by with such fin-teresting questions.",
+        "I’ll scale down the puns if you start to feel the pressure.",
+        "Are you squid-ding me here? These puns make the perfect catch!",
+        "Let’s wrap this up before things get out of salmon-control!",
+        "I’m not salty about making more puns—I’ll just go with the flow.",
+        "Holy mackerel! This is an un-fish-ievably fun task.",
+        "I’ll kelp you out as much as you need!",
+        "You’re the sole reason why I’m swimming in puns right now.",
+        "Don’t be koi—I know you’re loving these puns.",
+        "Wave hello to a sea-riously great list of puns!",
+        "I’m shore you can appreciate how punny this is.",
+        "I need to scale back before these puns get too deep.",
+        "Cod you believe how many fish jokes are out there?",
+        "Let’s not clam up—I’ve got plenty more puns in my net.",
+        "You’ve got me floundering for words with all these pun requests.",
+        "Having shell much fun with this; I hope you are, too.",
+        "You’re doing fintastic—don’t let anyone tell you otherwise.",
+        "Just relax and seas the day!",
+        "This conversation is o-fish-ally one of the best I’ve had today.",
+        "Stop acting so crabby; I haven’t finished yet.",
+        "You’re not quite at the fin-ish line for puns; there’s more!",
+        "I’ve haddock-nough, but I’ll keep fishing for more.",
+        "I have to say, these puns really give me porpoise.",
+        "You're dolphinitely my favorite person to share puns with.",
+        "If you’re still not satisfied, I sea what I can do next.",
+        "Don’t reef me hanging—I’ve got more ideas!",
+        "This is a whale of a conversation, don’t you think?",
+        "I’m not squidding when I say, these puns will tide you over.",
+        "These puns are shrimply the best!",
+        "Cod be worse—you could have no puns at all!",
+        "Sea-liously though, nautical nonsense is the best nonsense.",
+        "Stop being shellfish and share these puns with your friends!",
+        "If you’re angling for more, just let me know.",
+        "This pun list just keeps rowing and rowing.",
+        "Just for the halibut, here’s another pun!",
+        "I’m feeling a little shell-shocked by all these puns.",
+        "Don’t lobster hope, I believe in you!",
+        "Let’s not slack off—this is a plaice for serious puns!",
+        "I cod-n’t resist adding more jokes.",
+        "I’m shore this joke will tide everyone over.",
+        "Anchors aweigh! Let’s dive into another joke.",
+        "This is kraken me up!",
+        "Seal-iously, I have so many more puns for you.",
+        "Don’t let the tide bring you down; keep laughing!",
+        "Sardine-ly, you must enjoy these ocean puns!",
+        "I'm not angling for compliments, but you keep coming back for more!",
+        "I’ll kelp you be the best version of yourself!",
+        "Halibut you go and achieve your goals?",
+        "Let’s skate into the weekend with joy!",
+        "You’re fintastic, don’t let anyone tell you otherwise.",
+        "Shell we continue this delightful chat?",
+        "Plaices like this make everything better!",
+        "You make my heart skip a bream.",
+        "Why be crabby when you can be cheerful?",
+        "You're swimming into uncharted waters with confidence!",
+        "Let's not make things ten-tackle—we've got this!",
+        "Keep calm and avoid getting in deep water.",
+        "Squidn't life be more fun with a few puns?",
+        "You're reel-y inspiring!",
+        "Fish puns always hook me, line, and sinker.",
+        "Cray-sea times, but nothing we can't handle together!",
+        "You're fin-tastic, and I'm not just fishing for compliments.",
+        "We're definitely on the same wave-length!",
+        "Don't tide yourself up in stress—go with the flow."
+    ]
+
+    await interaction.response.send_message(random.choice(fish_puns))
+
+@bot.tree.command(name="chatrevive", description="Revives chat in the most inconvent way ")
+@commands.has_permissions(administrator=True)
+async def chatrevive(interaction: discord.Interaction):
+    membercount = 0
+    memberpinglist = []
+    guild = interaction.guild
+    await interaction.response.send_message("SHOOT THE BOMB CAPTIN! ")
+
+    for member in guild.members:
+        memberpinglist.append(member.mention)
+        membercount = membercount + 1
+
+        if membercount == 10:
+            await interaction.followup.send(f"{' '.join(memberpinglist)} WAKE UP MATEY")
+            memberpinglist.clear()
+            membercount = 0
+
+@bot.tree.command(name="message", description="makes the bot send a message ")
+@commands.has_permissions(administrator=True)
+@app_commands.describe(message="The message to send")
+async def message(interaction: discord.Interaction, message: str = None):
+    await interaction.response.send_message(message)
+
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    # Check if roles have changed
+    if len(before.roles) < len(after.roles):  # A role has been added
+        added_roles = [role for role in after.roles if role not in before.roles]
+
+        for role in added_roles:
+            if role.is_premium_subscriber():
+                user_id = after.id
+                username = after.name
+                displayname = after.display_name
+                donated = True
+                table.upsert(
+                    {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname},
+                    ['user_id']  # Use 'user_id' as the unique key
+                )
+                await send_dm(user_id, "Thanks for Donating (: You now have access to all of the features in the cathlioc confessions bot! 💖")
+                break
+
+@bot.event
+async def on_message_delete(message):
+    channel = message.channel
 
 
-## @bot.tree.command(name="welfare", description="signup for welfare") work on later im going to bed
+
+    if channel and not message.author.bot:
+        await channel.send(f"{random.choice(onmessagedeletelist)} \n Author: {message.author} \n Content: {message.content} \n {message.attachments}")
+
+@bot.event
+async def on_message_edit(before, after):
+
+    if before.content == after.content:
+        return
+
+    channel = before.channel
+
+    if before.content and not before.author.bot:
+        await channel.send(f"{random.choice(onmessagedeletelist)} \n Author: {before.author} \n Before: {before.content} \n After: {after.content}")
 
 
 
 
-
-Testing = False
-if not Testing:
-    bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.Gkmvjs.ToKMnSd971stOR_d8I_OCAEYkV0dwvLmAzbZhY')
-else:
-    bot.run('MTE0MzUxOTM0MjQ5NjA1OTU3Mw.GLQ5Jg.MFDbGe6-m4jgyxp9f9gKJE8ei7YJZbI-sMiP6U')
+bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.GmWt4l.oMVrTCmJ0ksTR1KlG6GmMdALpWVdage9_hI8G4')
