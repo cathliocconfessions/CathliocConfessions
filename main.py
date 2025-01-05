@@ -1,12 +1,18 @@
 import json
 import random
 import re
+from logging import exception, raiseExceptions
+
 import dataset
 import discord
 import pafy
 import requests
 from discord import app_commands
 from discord.ext import commands
+import time
+
+from discord.ext.commands import CommandOnCooldown
+from sqlalchemy import except_
 
 COOKIES_FILE = "cookies.txt"
 
@@ -149,11 +155,7 @@ async def add_all_to_db(interaction: discord.Interaction):
         for member in guild.members:
                 username = member.name
                 user_id = member.id
-                timefuck = 0
-                timeshit = 0
-                timeni = 0
-                timefa = 0
-                timebitch = 0
+                balance = 0
                 displayname = member.display_name
                 if member in guild.premium_subscribers:
                     donated = True
@@ -161,7 +163,7 @@ async def add_all_to_db(interaction: discord.Interaction):
                     donated = False
 
                 table.upsert(
-                    {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, "timefuck": timefuck, "timeshit": timeshit, "timeni": timeni, "timefa": timefa, "timebitch": timebitch },
+                    {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, 'balance': balance },
                     ['user_id']  # Use 'user_id' as the unique key
                 )
 
@@ -174,8 +176,7 @@ async def on_member_join(member):
     displayname = member.display_name
     donated = False
     table.upsert(
-        {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, "timefuck": 0,
-         "timeshit": 0, "timeni": 0, "timefa": 0, "timebitch": 0},
+        {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, 'balance': 0},
         ['user_id']  # Use 'user_id' as the unique key
     )
 
@@ -325,6 +326,57 @@ async def on_message_edit(before, after):
 
     if before.content and not before.author.bot:
         await channel.send(f"{random.choice(onmessagedeletelist)} \n Author: {before.author} \n Before: {before.content} \n After: {after.content}")
+
+@bot.tree.command(name="work", description="Work for some cash")
+@app_commands.checks.cooldown(1, 120.5)
+async def work(interaction: discord.Interaction):
+    user = table.find_one(user_id=interaction.user.id)
+
+    givingcash = random.randint(45, 136)
+    user['balance'] += givingcash
+    jobs = [f"You worked as a cashier employee and got {givingcash}", f"you ate some dudes ass and got {givingcash}", f"You scammed samartians by faking that you are poor, {givingcash}", f"You coded a discord bot for a server and they gave you {givingcash}", f"You drew a picture for someone and they gave you {givingcash}", f"You sold newspapers for {givingcash}", f"You became a Rent-a-bitch and got {givingcash} out of it"]
+
+    if user:
+        table.update(user, ['user_id'])
+
+    await interaction.response.send_message(f"{random.choice(jobs)}")
+
+@work.error
+async def work_error(interaction: discord.Interaction, error):
+    # Check if the error is caused by the cooldown
+    if isinstance(error, app_commands.CommandOnCooldown):
+        # Calculate retry time (human-readable)
+        retry_after = round(error.retry_after, 2)  # Retry time in seconds (rounded to 2 decimal places)
+        await interaction.response.send_message(
+            f"You're on cooldown! Try again in **{retry_after} seconds**.",
+            ephemeral=False   # Makes the message visible only to the user
+        )
+    else:
+        raise error  # Re-raise unexpected errors for logging
+
+
+@bot.tree.command(name="balance", description="Checks how much cash you have")
+async def balance(interaction: discord.Interaction):
+    # Get the user's Discord ID
+    user = interaction.user.id
+
+    # Fetch data from the database for this user
+    user_data = table.find_one(user_id=user)
+
+    # Check if the user exists in the database
+    if user_data is None:
+        await interaction.response.send_message("You don't have an account yet!")
+        return
+
+    # Extract the balance from the returned database record
+    user_balance = str(user_data['balance'])  # Convert for indexing if necessary
+
+    # Respond with the balance or the first digit, depending on your logic
+    await interaction.response.send_message(f"You have {user_balance} dollars.")  # Full balance
+    # OR if you only care about the first digit:
+    # await interaction.response.send_message(f"You have {user_balance[0]} Dollars.")
+
+
 
 
 
