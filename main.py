@@ -5,19 +5,16 @@ from logging import exception, raiseExceptions
 
 import dataset
 import discord
-import pafy
 import requests
 from discord import app_commands
 from discord.ext import commands
 import time
 
 from discord.ext.commands import CommandOnCooldown
-from sqlalchemy import except_
 
 COOKIES_FILE = "cookies.txt"
 
 queue = []
-pafy.set_api_key("AIzaSyBoAgLxws6dGmxUjttZyWZ_RK75kA5LU4U")
 onmessagedeletelist = ["bro forgot about digital footprint", "watch what you say next time!", "Your message cant be hidden from me", "yall screenshot this rq and post it to twitter.com", "nice try buddy boy", "you are gonna be haunted by this in the future", ]
 intents = discord.Intents.all()
 intents.members = True
@@ -95,7 +92,7 @@ async def register(interaction: discord.Interaction, user: discord.User = None):
 
         # Upsert or Update logic
         table.upsert(
-            {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, 'cusses': 0 },
+            {'user_id': user_id, 'username': username, 'donated': donated, 'balance': 0, 'displayname': displayname, 'cusses': 0 },
             ['user_id']  # Use 'user_id' as the unique key
         )
 
@@ -163,7 +160,7 @@ async def add_all_to_db(interaction: discord.Interaction):
                     donated = False
 
                 table.upsert(
-                    {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, 'balance': balance },
+                    {'user_id': user_id, 'username': username, 'donated': donated, 'balance': 0, 'displayname': displayname, 'balance': balance },
                     ['user_id']  # Use 'user_id' as the unique key
                 )
 
@@ -332,6 +329,7 @@ async def on_message_edit(before, after):
 async def work(interaction: discord.Interaction):
     user = table.find_one(user_id=interaction.user.id)
 
+
     givingcash = random.randint(45, 136)
     user['balance'] += givingcash
     jobs = [f"You worked as a cashier employee and got {givingcash}", f"you ate some dudes ass and got {givingcash}", f"You scammed samartians by faking that you are poor, {givingcash}", f"You coded a discord bot for a server and they gave you {givingcash}", f"You drew a picture for someone and they gave you {givingcash}", f"You sold newspapers for {givingcash}", f"You became a Rent-a-bitch and got {givingcash} out of it"]
@@ -365,7 +363,7 @@ async def balance(interaction: discord.Interaction):
 
     # Check if the user exists in the database
     if user_data is None:
-        await interaction.response.send_message("You don't have an account yet!")
+        await interaction.response.send_message("Uh oh, Looks like you werent found in our database. Please ping Silverstero for help")
         return
 
     # Extract the balance from the returned database record
@@ -378,8 +376,65 @@ async def balance(interaction: discord.Interaction):
 
 
 @bot.tree.command(name="coinflip", description="lets flip a coin err awh dang it err awh dang it err awh dangit")
-@app
+@app_commands.describe(money="How much money you gonna gamble??")
+@app_commands.describe(coinsides="Pick your poison")
+@app_commands.choices(
+    coinsides=[
+        app_commands.Choice(name="Head", value="Head"),
+        app_commands.Choice(name="Tails", value="Tails"),
+    ]
+)
+async def coinflip(interaction: discord.Interaction, money: int = None, coinsides: str = None):
+    user = interaction.user.id
+
+    silver = table.find_one(user_id=970493985053356052)
+    weired = table.find_one(user_id=1211101305607553116)
+
+    silver_balance = silver.get('balance', 0)
+    weired_balance = weired.get('balance', 0)
+
+    # Fetch data from the database for this user
+    user_data = table.find_one(user_id=user)
+
+    # Check if the user exists in the database
+    if user_data is None:
+        await interaction.response.send_message("Uh oh, Looks like you werent found in our database. Please ping Silverstero for help")
+        return
+
+    user_balance = user_data.get('balance', 0)
+
+    if money > user_balance:
+        await interaction.response.send_message("You dont have enough cash bucko")
+
+    coinside = random.choice(['Head', 'Tails'])
+
+    if coinside == coinsides:
+        await interaction.response.send_message(f"You won zamn you got {money} dollars")
+        user_balance += money
+        table.update({'balance': user_balance}, ['user_id'])
+
+    else:
+        await interaction.response.send_message(f" Damn. You lost {money} dollars. silver and weired may or may not have the cash now")
+        user_balance -= money
+        table.update({'balance': user_balance}, ['user_id'])
+        split = money / 2
+
+        silver_balance += split
+        weired_balance += split
+
+        table.update({'user_id': 970493985053356052, 'balance': silver_balance}, ['user_id'])
+        table.update({'user_id': 1211101305607553116, 'balance': weired_balance}, ['user_id'])
+
+
+
+
+
+
+
+
 
 
 
 bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.GmWt4l.oMVrTCmJ0ksTR1KlG6GmMdALpWVdage9_hI8G4')
+
+
