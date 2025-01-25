@@ -150,19 +150,32 @@ async def add_all_to_db(interaction: discord.Interaction):
         guild = interaction.guild
 
         for member in guild.members:
-                username = member.name
-                user_id = member.id
-                balance = 0
-                displayname = member.display_name
-                if member in guild.premium_subscribers:
-                    donated = True
-                else:
-                    donated = False
+            username = member.name
+            user_id = member.id
+            displayname = member.display_name
+            existing_user = table.find_one(user_id=user_id)
 
-                table.upsert(
-                    {'user_id': user_id, 'username': username, 'donated': donated, 'balance': 0, 'displayname': displayname, 'balance': balance },
-                    ['user_id']  # Use 'user_id' as the unique key
-                )
+            if existing_user:
+                balance = existing_user['balance']
+                lvlxp = existing_user['lvlxp']
+                lvl = existing_user['lvl']
+
+            else:
+                balance = 0
+                lvlxp = 0
+                lvl = 0
+
+
+            if member in guild.premium_subscribers:
+                donated = True
+            else:
+                donated = False
+
+            table.upsert(
+                {'user_id': user_id, 'username': username, 'donated': donated, 'balance': balance,
+                 'displayname': displayname, "lvlxp": lvlxp, "lvl": lvl},
+                ['user_id']  # Use 'user_id' as the unique key
+            )
 
     await interaction.response.send_message("all of the users have been added to the db")
 
@@ -424,6 +437,276 @@ async def coinflip(interaction: discord.Interaction, money: int = None, coinside
 
         table.update({'user_id': 970493985053356052, 'balance': silver_balance}, ['user_id'])
         table.update({'user_id': 1211101305607553116, 'balance': weired_balance}, ['user_id'])
+
+
+@bot.tree.command(name="slots", description="lets go gambling err awh dang it err awh dang it err awh dangit")
+@app_commands.describe(money="How much money you gonna gamble??")
+async def slots(interaction: discord.Interaction, money: int = None,):
+    user = interaction.user.id
+
+    silver = table.find_one(user_id=970493985053356052)
+    weired = table.find_one(user_id=1211101305607553116)
+
+    silver_balance = silver.get('balance', 0)
+    weired_balance = weired.get('balance', 0)
+
+    # Fetch data from the database for this user
+    user_data = table.find_one(user_id=user)
+
+    # Check if the user exists in the database
+    if user_data is None:
+        await interaction.response.send_message("Uh oh, Looks like you werent found in our database. Please ping Silverstero for help")
+        return
+
+    user_balance = user_data.get('balance', 0)
+
+    if money > user_balance:
+        await interaction.response.send_message("You dont have enough cash bucko")
+        return
+
+    slotmachinenumber = random.randint(1, 10000)
+    schlatt = discord.PartialEmoji(name="schlatt", id=1327471277866483834)
+    spiningemoji = discord.PartialEmoji(name="spinning", id=1327471218814881813)
+    moneyemoji = discord.PartialEmoji(name="monery", id=1327471227278856222)
+    trollface = discord.PartialEmoji(name="trollface", id=1327471236619698227)
+    bigface1 =  discord.PartialEmoji(name="bigface1", id=1327471248057565296)
+    bigface2 =  discord.PartialEmoji(name="bigface2", id=1327471257142169622)
+    bigface3 =  discord.PartialEmoji(name="bigface3", id=1327471268450013236)
+
+    slotemoji1 = '<a:spinning:1327471218814881813>'
+    slotemoji2 = '<a:spinning:1327471218814881813>'
+    slotemoji3 = '<a:spinning:1327471218814881813>'
+
+    slotemojis = ['<a:monery:1327471227278856222>', '<:trollface:1327471236619698227>', '<:bigface1:1327471248057565296>', '<:bigface2:1327471257142169622>', '<:bigface3:1327471268450013236>']
+
+    def build_format():
+        return (
+            f"`| Silver and weired slot machine no: {slotmachinenumber}  |` \n"
+            "`|`                                                                                             `|`\n"
+            f"                                `|`{slotemoji1}`|`{slotemoji2}`|`{slotemoji3}`|` \n"
+            "                                `|             |` \n"
+            "                                `|             |` \n"
+            "                                `|             |` \n"
+        )
+    format = build_format()
+    weights = [1,1,1,1,1]
+
+
+    moneryweight = weights[0]
+    trollfaceweight = weights[1]
+    bigface1weight = weights[2]
+    bigface2weight = weights[3]
+    bigface3weight = weights[4]
+
+
+    await interaction.response.send_message(format)
+    format = build_format()
+    time.sleep(3)
+    slotemoji1 = random.choices(slotemojis, weights=weights, k=1)[0]
+
+
+    format = build_format()
+    await interaction.edit_original_response(content=format)
+
+    if slotemoji1 == '<a:monery:1327471227278856222>':
+        moneryweight = moneryweight + 2
+
+    elif slotemoji1 == '<:trollface:1327471236619698227>':
+        trollfaceweight = trollfaceweight + 2
+
+    elif slotemoji1 == '<:bigface1:1327471248057565296>':
+        bigface2weight = bigface2weight + 2
+
+    elif slotemoji1 == '<:bigface2:1327471257142169622>':
+        bigface3weight = bigface3weight + 2
+
+    weights = [moneryweight, trollfaceweight, bigface1weight, bigface2weight, bigface3weight]
+
+    time.sleep(1)
+
+    slotemoji2 = random.choices(slotemojis, weights=weights, k=1)[0]
+
+    if slotemoji2 == '<a:monery:1327471227278856222>':
+        moneryweight = moneryweight + 2
+
+    elif slotemoji2 == '<:trollface:1327471236619698227>':
+        trollfaceweight = trollfaceweight + 2
+
+    elif slotemoji2 == '<:bigface1:1327471248057565296>':
+        bigface2weight = bigface2weight + 2
+
+    elif slotemoji2 == '<:bigface2:1327471257142169622>':
+        bigface3weight = bigface3weight + 2
+
+    weights = [moneryweight, trollfaceweight, bigface1weight, bigface2weight, bigface3weight]
+
+    format = build_format()
+    await interaction.edit_original_response(content=format)
+    time.sleep(1)
+    slotemoji3 = random.choices(slotemojis, weights=weights, k=1)[0]
+    if slotemoji3 == '<a:monery:1327471227278856222>':
+        moneryweight = moneryweight + 2
+
+    elif slotemoji3 == '<:trollface:1327471236619698227>':
+        trollfaceweight = trollfaceweight + 2
+
+    elif slotemoji3 == '<:bigface1:1327471248057565296>':
+        bigface2weight = bigface2weight + 2
+
+    elif slotemoji3== '<:bigface2:1327471257142169622>':
+        bigface3weight = bigface3weight + 2
+
+    weights = [moneryweight, trollfaceweight, bigface1weight, bigface2weight, bigface3weight]
+
+    format = build_format()
+    await interaction.edit_original_response(content=format)
+
+    if slotemoji1 == slotemoji2 == slotemoji3:
+        user_balance += money
+        table.update({'balance': user_balance}, ['user_id'])
+        await interaction.edit_original_response(content= format + "you won {money} dollars")
+
+    else:
+        user_balance -= money
+        table.update({'balance': user_balance}, ['user_id'])
+        split = money / 2
+        silver_balance += split
+        weired_balance += split
+        table.update({'user_id': 970493985053356052, 'balance': silver_balance}, ['user_id'])
+        await interaction.edit_original_response(content=format + f"you lost {money} dollars, we are not going to say who has your money now")
+
+@bot.tree.command(name="mammaljokes", description="mammal jokes")
+async def mamaljokes(interaction: discord.Interaction):
+    mammal_jokes = [
+        "Why don't elephants use computers? Because they're afraid of the mouse!",
+        "What do you call a bear with no teeth? A gummy bear!",
+        "Why did the cow go to space? To see the moooon!",
+        "What do you get when you cross a dog and a computer? A lot of bites!",
+        "Why did the rabbit bring a pencil to the party? Because he wanted to draw attention!",
+        "Why can't you trust a lion at the zoo? Because they are always lion around!",
+        "What do you call a sleeping bull? A bulldozer!",
+        "Why do squirrels like to swim? Because they’re great at nut-diving!",
+        "How do you catch a unique rabbit? Unique up on it!",
+        "What’s a kangaroo’s favorite type of music? Hip-hop!",
+        "Why did the zebra start a band? Because he was a natural on the stripes!",
+        "What do you get when you cross a snowman and a dog? Frostbite!",
+        "Why do dolphins always carry a towel? Because they love to have a whale of a time!",
+        "What did the fox say to the owl? You’re looking hoot-iful today!",
+        "Why are pigs so bad at sharing? Because they’re always hogging things!",
+        "What do you call a fish who practices magic? A sturgeon!",
+        "Why did the bat join the baseball team? Because it was a great hitter!",
+        "What do you call an alligator in a vest? An investigator!",
+        "Why don’t monkeys use cell phones? They prefer using bananas for calls!",
+        "What’s a cat’s favorite color? Purr-ple!",
+        "Why don’t cows tell secrets? Because the beans always get spilled!",
+        "How does a lion like its coffee? With a little roar-milk!",
+        "What’s an elephant’s favorite game? Squash!",
+        "Why did the dog sit in the shade? Because it didn’t want to be a hot dog!",
+        "What do you call a dog magician? A labracadabrador!",
+        "Why did the horse go behind the tree? To change his jockeys!",
+        "What do you get if you cross a cow and a duck? Milk and quackers!",
+        "What do you call a bear that’s stuck in the rain? A drizzly bear!",
+        "Why was the giraffe so good at basketball? Because he was always above the rim!",
+        "Why don’t horses ever play poker? Because they don’t want to get stables!",
+        "What did the lion say when he saw a group of mice? ‘Dinner time!’",
+        "What do you get when you cross a dog with a calculator? A friend you can count on!",
+        "What did the elephant say to the tiger? You’re purr-fect!",
+        "Why did the squirrel break up with the chipmunk? They had too many issues with their relationship!",
+        "What did the walrus say to the seal? ‘You’re just a seal of approval!’",
+        "Why was the bat upset? It wasn’t feeling quite up to scratch!",
+        "What do you call a group of singing cats? A meow-sic band!",
+        "Why are kangaroos such bad musicians? Because they always jump to the wrong notes!",
+        "What do you call a dog that loves indulging in pastries? A pup-cake!",
+        "Why did the cow want to become an astronaut? To get a higher moo-n!",
+        "Why are zebras so bad at playing cards? Because they always show their stripes!",
+        "What do you call a mammal who likes to tell jokes? A comed-otter!",
+        "What’s the most musical animal? The hum-bat!",
+        "What did the otter say when he won a race? ‘I’m otterly awesome!’",
+        "What did the cheetah say to the slow turtle? ‘Catch me if you can!’",
+        "What do you call an elephant that knows how to play the trumpet? A trunk-eteer!",
+        "Why did the bear wear a fur coat in the summer? He was too cool to not wear it!",
+        "Why don’t rhinos ever use their smartphones? Because they’re too big for their hands!",
+        "What did the giraffe say to the turtle at the bar? 'You’re way too slow to catch up with me!'",
+        "What do you get when you cross an elephant with a rhinoceros? Elephino!",
+        "What do you call a wolf who loves ice cream? A howlin' sundae!",
+        "Why don’t zebras play hide and seek? Because they’re always spotted!",
+        "What’s a cat’s favorite game? Catch the mouse!",
+        "What do you call a sloth with a loud voice? A yawn-imal!",
+        "Why did the wolf join a band? Because he was great at howling!",
+        "How does a porcupine make friends? With sharp wit!",
+        "What do you call a boar that’s always going to school? A learning hog!",
+        "What do you call a dog that can do magic? A labracadabrador!",
+        "What do you call a mammal who’s always gossiping? A bear-it-tale!",
+        "Why are giraffes bad at basketball? Because they always miss the basket!",
+        "What do you get when you cross a shark with a zebra? A striped bite!",
+        "Why did the penguin break up with the seagull? Because it couldn’t handle the distance!",
+        "Why don’t raccoons make good basketball players? They can’t keep their eyes on the ball!",
+        "What do you call a lion who lost his roar? A kitten!",
+        "What do you call a camel with three humps? Pregnant!",
+        "What did the lion say after a meal? ‘I’m stuffed!’",
+        "Why do bears make great comedians? Because they know how to bear a joke!",
+        "What’s a whale’s favorite game? Whale-thy words!",
+        "What do you get if you cross a giraffe and a skunk? A very tall smell!",
+        "Why was the dog sitting next to the computer? Because it wanted to keep an eye on the mouse!",
+        "Why did the kangaroo break up with his girlfriend? He was jumping to conclusions!",
+        "What did the penguin say to the polar bear? ‘You’re ice-cold awesome!’",
+        "What did the seal say after finishing his meal? ‘That was seal-icious!’",
+        "What do you call a cat who loves to play cards? A poker face!",
+        "What’s a monkey’s favorite exercise? Chimp-ing in the gym!",
+        "Why did the rabbit wear a fur coat? It was feeling hoppy!",
+        "What did the giraffe say when it went to the party? ‘I’m feeling tall today!’",
+        "Why don’t bears ever get married? They don’t want to bear the commitment!",
+        "What did the dog say to the cat? ‘Stop cat-astrophizing!’",
+        "What do you call an animal that loves to drive? A road hog!",
+        "What did the cow say to the horse? ‘You’re horsing around too much!’",
+        "What do you call a nervous bison? A buffa-lone!",
+        "Why do giraffes have long necks? Because their heads are so far from their bodies!",
+        "What do you get if you cross a lion and a donkey? A very confusing roar!",
+        "Why don’t squirrels make good bankers? They’re always going nuts with their money!",
+        "Why did the dog join the circus? Because he was a great performer!",
+        "What did the mouse say to the cat? ‘You’re paws-itively scary!’",
+        "What do you call a bear who loves to play sports? A grizzly athlete!",
+        "What did the zebra say to the lion? ‘Better luck next time, buddy!’",
+        "Why did the squirrel always bring a pencil to the party? So he could draw some attention!",
+        "Why are giraffes such terrible comedians? Because their jokes are way too high-brow!",
+        "What did the bat say to the owl? ‘You’re looking fly tonight!’",
+        "Why did the rabbit get a job? He needed to make some hare-raising cash!",
+        "What do you call an angry rhino? A horn-tastic beast!",
+        "What did the lion do at the computer store? He went to buy a roary!",
+        "What do you call a bear in the rain? A drizzly bear!",
+        "Why don’t pandas ever play cards? They’re always too busy munching bamboo!",
+        "Why did the dog go to therapy? To work on his bark issues!",
+        "What do you call a pig who likes doing yoga? A ham-maste!",
+        "Why did the bat go to the party? To have a fang-tastic time!",
+        "Why was the koala so relaxed? He was on a leaf break!",
+        "What do you call a hippo who loves cooking? A hip-hop chef!"
+    ]
+
+    await interaction.response.send_message(random.choice(mammal_jokes))
+
+@bot.event()
+async def on_message(message):
+    if message.author == bot.user:
+        return
+
+    userid = message.author.id
+    userquery = table.find_one(user_id=userid)
+
+    if userquery['lvlxp'] == 350:
+        userquery['lvl'] += 1
+        userquery['lvlxp'] = 0
+        userquery['balance'] += 10000
+        table.update(userquery, ['user_id'])
+
+
+        await message.channel.send(f"Congrats {message.author.mention}! You've leveled up to level {userquery['lvl']}! You also got 10,000 dollar or maybe the code bugged 🤷")
+
+
+    if userquery:
+        userquery['lvlxp'] += 1
+        table.update(userquery, ['user_id'])
+
+
 
 
 
