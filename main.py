@@ -3,6 +3,8 @@ import random
 import re
 from logging import exception, raiseExceptions
 
+import aiohttp
+import base64
 import dataset
 import discord
 import requests
@@ -20,7 +22,9 @@ intents = discord.Intents.all()
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 db = dataset.connect('sqlite:///users.db')
+cosplaydb = dataset.connect('sqlite:///cosplays.db')
 table = db['users']
+cosplay_table = db['cosplays.db']
 
 def play_next(vc):
     if queue:
@@ -273,7 +277,9 @@ async def fishpun(interaction: discord.Interaction):
         "Don't tide yourself up in stress—go with the flow."
     ]
 
-    await interaction.response.send_message(random.choice(fish_puns))
+    embed = discord.Embed(color=0xd2e7ba,  title="Fish puns", type='rich', url=None, description=f'{random.choice(fish_puns)}', timestamp=None)
+
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="chatrevive", description="Revives chat in the most inconvent way ")
 @commands.has_permissions(administrator=True)
@@ -292,12 +298,6 @@ async def chatrevive(interaction: discord.Interaction):
             memberpinglist.clear()
             membercount = 0
 
-@bot.tree.command(name="message", description="makes the bot send a message ")
-@commands.has_permissions(administrator=True)
-@app_commands.describe(message="The message to send")
-async def message(interaction: discord.Interaction, message: str = None):
-    await interaction.response.send_message(message)
-
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
     # Check if roles have changed
@@ -314,6 +314,8 @@ async def on_member_update(before: discord.Member, after: discord.Member):
                     {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname},
                     ['user_id']  # Use 'user_id' as the unique key
                 )
+
+
                 await send_dm(user_id, "Thanks for Donating (: You now have access to all of the features in the cathlioc confessions bot! 💖")
                 break
 
@@ -324,7 +326,15 @@ async def on_message_delete(message):
 
 
     if channel and not message.author.bot:
-        await channel.send(f"{random.choice(onmessagedeletelist)} \n Author: {message.author} \n Content: {message.content} \n {message.attachments}")
+        embed = discord.Embed(
+            title=f"{message.author} Tried to delete a message",
+            description=f"{random.choice(onmessagedeletelist)}",
+            colour=discord.Colour.red()
+        )
+
+        embed.add_field(name="Message:", value=message.content)
+
+        await channel.send(embed=embed)
 
 @bot.event
 async def on_message_edit(before, after):
@@ -335,7 +345,16 @@ async def on_message_edit(before, after):
     channel = before.channel
 
     if before.content and not before.author.bot:
-        await channel.send(f"{random.choice(onmessagedeletelist)} \n Author: {before.author} \n Before: {before.content} \n After: {after.content}")
+        embed = discord.Embed(
+            title=f"{before.author} Edited a message",
+            description=f"{random.choice(onmessagedeletelist)}",
+            colour=discord.Colour.yellow()
+        )
+
+        embed.add_field(name="Before:", value=before.content)
+        embed.add_field(name="After:", value=after.content)
+
+        await channel.send(embed=embed)
 
 @bot.tree.command(name="work", description="Work for some cash")
 @app_commands.checks.cooldown(1, 120.5)
@@ -343,14 +362,23 @@ async def work(interaction: discord.Interaction):
     user = table.find_one(user_id=interaction.user.id)
 
 
+
+
     givingcash = random.randint(45, 136)
     user['balance'] += givingcash
     jobs = [f"You worked as a cashier employee and got {givingcash}", f"you ate some dudes ass and got {givingcash}", f"You scammed samartians by faking that you are poor, {givingcash}", f"You coded a discord bot for a server and they gave you {givingcash}", f"You drew a picture for someone and they gave you {givingcash}", f"You sold newspapers for {givingcash}", f"You became a Rent-a-bitch and got {givingcash} out of it"]
 
+    embed = discord.Embed(
+        title="You worked",
+        description=f"{random.choice(jobs)}",
+        colour=discord.Colour.green()
+    )
+
+
     if user:
         table.update(user, ['user_id'])
 
-    await interaction.response.send_message(f"{random.choice(jobs)}")
+    await interaction.response.send_message(embed=embed)
 
 @work.error
 async def work_error(interaction: discord.Interaction, error):
@@ -358,9 +386,15 @@ async def work_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.CommandOnCooldown):
         # Calculate retry time (human-readable)
         retry_after = round(error.retry_after, 2)  # Retry time in seconds (rounded to 2 decimal places)
+
+        embed = discord.Embed(
+            title="Cooldown!",
+            description="You are on cooldown!",
+            color=0xe36572
+        )
+
         await interaction.response.send_message(
-            f"You're on cooldown! Try again in **{retry_after} seconds**.",
-            ephemeral=False   # Makes the message visible only to the user
+            embed=embed
         )
     else:
         raise error  # Re-raise unexpected errors for logging
@@ -373,20 +407,22 @@ async def balance(interaction: discord.Interaction):
 
     # Fetch data from the database for this user
     user_data = table.find_one(user_id=user)
+    user_balance = str(user_data['balance'])
 
     # Check if the user exists in the database
     if user_data is None:
+
+
         await interaction.response.send_message("Uh oh, Looks like you werent found in our database. Please ping Silverstero for help")
         return
 
-    # Extract the balance from the returned database record
-    user_balance = str(user_data['balance'])  # Convert for indexing if necessary
+    embed = discord.Embed(
+        title="Balance",
+        description=f"you have {user_balance} Dollars ",
+        color=0x00ff00  # Green color
+    )
 
-    # Respond with the balance or the first digit, depending on your logic
-    await interaction.response.send_message(f"You have {user_balance} dollars.")  # Full balance
-    # OR if you only care about the first digit:
-    # await interaction.response.send_message(f"You have {user_balance[0]} Dollars.")
-
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="coinflip", description="lets flip a coin err awh dang it err awh dang it err awh dangit")
 @app_commands.describe(money="How much money you gonna gamble??")
@@ -417,17 +453,35 @@ async def coinflip(interaction: discord.Interaction, money: int = None, coinside
     user_balance = user_data.get('balance', 0)
 
     if money > user_balance:
-        await interaction.response.send_message("You dont have enough cash bucko")
+        embed = discord.Embed(
+            title="Uh oh",
+            description="You dont have enough cash bucko",
+            color=discord.Colour.red()
+        )
+
+        await interaction.response.send_message(embed=embed)
 
     coinside = random.choice(['Head', 'Tails'])
 
     if coinside == coinsides:
-        await interaction.response.send_message(f"You won zamn you got {money} dollars")
+        embed = discord.Embed(
+            title="You won zamn",
+            description=f"you got {money} dollars",
+            color=discord.Colour.green()
+            )
+        await interaction.response.send_message(embed=embed)
         user_balance += money
         table.update({'balance': user_balance}, ['user_id'])
 
     else:
-        await interaction.response.send_message(f" Damn. You lost {money} dollars. silver and weired may or may not have the cash now")
+
+        embed = discord.Embed(
+            title="You lost damn",
+            description=f"you lost {money} dollars",
+            color=discord.Colour.red()
+            )
+
+        await interaction.response.send_message(embed=embed)
         user_balance -= money
         table.update({'balance': user_balance}, ['user_id'])
         split = money / 2
@@ -473,6 +527,8 @@ async def slots(interaction: discord.Interaction, money: int = None,):
     bigface2 =  discord.PartialEmoji(name="bigface2", id=1327471257142169622)
     bigface3 =  discord.PartialEmoji(name="bigface3", id=1327471268450013236)
 
+
+
     slotemoji1 = '<a:spinning:1327471218814881813>'
     slotemoji2 = '<a:spinning:1327471218814881813>'
     slotemoji3 = '<a:spinning:1327471218814881813>'
@@ -509,16 +565,16 @@ async def slots(interaction: discord.Interaction, money: int = None,):
     await interaction.edit_original_response(content=format)
 
     if slotemoji1 == '<a:monery:1327471227278856222>':
-        moneryweight = moneryweight + 2
+        moneryweight = moneryweight + 4
 
     elif slotemoji1 == '<:trollface:1327471236619698227>':
-        trollfaceweight = trollfaceweight + 2
+        trollfaceweight = trollfaceweight + 4
 
     elif slotemoji1 == '<:bigface1:1327471248057565296>':
-        bigface2weight = bigface2weight + 2
+        bigface2weight = bigface2weight + 4
 
     elif slotemoji1 == '<:bigface2:1327471257142169622>':
-        bigface3weight = bigface3weight + 2
+        bigface3weight = bigface3weight + 4
 
     weights = [moneryweight, trollfaceweight, bigface1weight, bigface2weight, bigface3weight]
 
@@ -682,9 +738,16 @@ async def mamaljokes(interaction: discord.Interaction):
         "What do you call a hippo who loves cooking? A hip-hop chef!"
     ]
 
-    await interaction.response.send_message(random.choice(mammal_jokes))
+    embed = discord.Embed(
+        title="Your mammal joke 😆",
+        description=f"{random.choice(mammal_jokes)}",
+        colour=discord.Colour.green()
+    )
 
-@bot.event()
+
+    await interaction.response.send_message(embeds=embed)
+
+@bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
@@ -692,29 +755,92 @@ async def on_message(message):
     userid = message.author.id
     userquery = table.find_one(user_id=userid)
 
-    if userquery['lvlxp'] == 350:
+    if userquery['lvlxp'] >= 350:
         userquery['lvl'] += 1
         userquery['lvlxp'] = 0
         userquery['balance'] += 10000
         table.update(userquery, ['user_id'])
 
 
-        await message.channel.send(f"Congrats {message.author.mention}! You've leveled up to level {userquery['lvl']}! You also got 10,000 dollar or maybe the code bugged 🤷")
+        await message.channel.send(f"Congrats {message.author}! You've leveled up to level {userquery['lvl']}! You also got 10,000 dollars or maybe the code bugged 🤷")
 
 
     if userquery:
         userquery['lvlxp'] += 1
         table.update(userquery, ['user_id'])
 
+@bot.tree.command(name="lvl", description="Check your level")
+async def lvl(interaction: discord.Interaction):
+    userid = interaction.user.id
+    userquery = table.find_one(user_id=userid)
+
+    if userquery:
+        await interaction.response.send_message(f"Your level is {userquery['lvl']} and you have {userquery['lvlxp']} xp")
 
 
+@bot.tree.command(name="leaderboard", description="Check the leaderboard")
+async def leaderboard(interaction: discord.Interaction):
+    allusers = table.all()
+
+    # Filter out users with None values for 'lvl'
+    allusers = [user for user in allusers if user['lvl'] is not None and user['lvl'] >= 1]
+
+    # Sort the filtered users by 'lvl' in descending order
+    allusers = sorted(allusers, key=lambda x: x['lvl'], reverse=True)
+
+    leaderboard = []
+    for user in allusers:
+        leaderboard.append(f"{user['username']} - Level {user['lvl']}")
 
 
+    await interaction.response.send_message("The level leaderboard \n".join(leaderboard))
 
+@bot.tree.command(name="givecash", description="give cash to someone")
+@app_commands.describe(money="how much money are you gonna give?")
+@app_commands.commands.describe(user="The user you are gonna give money to")
+async def givecash(interaction: discord.Interaction, money: int = None, user: discord.User = None):
+    userquery = table.find_one(user_id=interaction.user.id)
+    targetquery = table.find_one(user_id=user.id)
 
+    if userquery['balance'] < money:
+        await interaction.response.send_message("You dont have enough cash bucko")
+        return
 
+    userquery['balance'] -= money
+    targetquery['balance'] += money
 
+    table.update(userquery, ['user_id'])
+    table.update(targetquery, ['user_id'])
 
+    await interaction.response.send_message(f"You gave {money} to {user.name}")
+
+@bot.tree.command(name="meme", description="Fetches a meme from the dailyshitpost.net")
+async def meme(interaction: discord.Interaction):
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.thedailyshitpost.net/random") as response:
+            data = await response.json()
+
+    await interaction.response.send_message(data['url'])
+
+@bot.tree.command(name="cosplaycreate", description="Create a cosplay")
+@app_commands.describe(character="The character name")
+@app_commands.describe(discriminator="The symbol you are going to use to play as the bot")
+@app_commands.describe(profilepicture="the profile picture of the bot")
+async def cosplaycreate(interaction: discord.Interaction, character: str = None, discriminator: str = None, profilepicture: discord.Attachment = None):
+    # Read the file content and encode it as base64
+    file_content = await profilepicture.read()
+    encoded_file = base64.b64encode(file_content).decode('utf-8')
+
+    # Save the cosplay information to the database
+    cosplay_table.upsert({
+        'creator': interaction.user.name,
+        'user_id': interaction.user.id,
+        'character': character,
+        'discriminator': discriminator,
+        'profilepicture': encoded_file
+    }, ['user_id', 'character'])
+
+    await interaction.response.send_message("Cosplay created and saved. Use the discriminator to play as the character.")
 
 
 
