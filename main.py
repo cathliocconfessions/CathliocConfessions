@@ -11,6 +11,8 @@ import requests
 from discord import app_commands
 from discord.ext import commands
 import time
+import os
+import sys
 
 from discord.ext.commands import CommandOnCooldown
 
@@ -22,9 +24,8 @@ intents = discord.Intents.all()
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 db = dataset.connect('sqlite:///users.db')
-cosplaydb = dataset.connect('sqlite:///cosplays.db')
 table = db['users']
-cosplay_table = db['cosplays.db']
+
 
 def play_next(vc):
     if queue:
@@ -752,6 +753,9 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
+
+
+
     userid = message.author.id
     userquery = table.find_one(user_id=userid)
 
@@ -822,25 +826,21 @@ async def meme(interaction: discord.Interaction):
 
     await interaction.response.send_message(data['url'])
 
-@bot.tree.command(name="cosplaycreate", description="Create a cosplay")
-@app_commands.describe(character="The character name")
-@app_commands.describe(discriminator="The symbol you are going to use to play as the bot")
-@app_commands.describe(profilepicture="the profile picture of the bot")
-async def cosplaycreate(interaction: discord.Interaction, character: str = None, discriminator: str = None, profilepicture: discord.Attachment = None):
-    # Read the file content and encode it as base64
-    file_content = await profilepicture.read()
-    encoded_file = base64.b64encode(file_content).decode('utf-8')
+@bot.tree.command(name="pullupdate", description="Pulls an update from GitHub and restarts the bot (Silver only)")
+async def pullupdate(interaction: discord.Interaction):
+    if interaction.user.id != 970493985053356052:
+        await interaction.response.send_message("You are not silver")
+        return
 
-    # Save the cosplay information to the database
-    cosplay_table.upsert({
-        'creator': interaction.user.name,
-        'user_id': interaction.user.id,
-        'character': character,
-        'discriminator': discriminator,
-        'profilepicture': encoded_file
-    }, ['user_id', 'character'])
+    await interaction.response.send_message("Pulling update from GitHub")
+    os.system('git pull')
 
-    await interaction.response.send_message("Cosplay created and saved. Use the discriminator to play as the character.")
+    await interaction.followup.send("Restarting the bot to apply updates...")
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+@bot.tree.command(name="testcommand", description="DELETE")
+async def pullupdate(interaction: discord.Interaction):
+    await interaction.response.send_message("DELETE")
 
 
 
