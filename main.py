@@ -829,7 +829,7 @@ async def meme(interaction: discord.Interaction):
 @bot.tree.command(name="pullupdate", description="Pulls an update from GitHub and restarts the bot (Silver only)")
 async def pullupdate(interaction: discord.Interaction):
     if interaction.user.id != 970493985053356052:
-        await interaction.response.send_message("You are not silver")
+        await interaction.response.send_message("You are not silver bro")
         return
 
     await interaction.response.send_message("Pulling update from GitHub")
