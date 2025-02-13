@@ -10,6 +10,7 @@ import discord
 import requests
 from discord import app_commands
 from discord.ext import commands
+from dotenv import load_dotenv
 import time
 import os
 import sys
@@ -25,6 +26,7 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 db = dataset.connect('sqlite:///users.db')
 table = db['users']
+load_dotenv()
 
 
 def play_next(vc):
@@ -842,8 +844,6 @@ async def pullupdate(interaction: discord.Interaction):
 async def pullupdate(interaction: discord.Interaction):
     await interaction.response.send_message("DELETE")
 
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
-
-bot.run('MTE0MzUxODAzMDMwMzg3MTA2Nw.GmWt4l.oMVrTCmJ0ksTR1KlG6GmMdALpWVdage9_hI8G4')
-
-
+bot.run(DISCORD_TOKEN)
