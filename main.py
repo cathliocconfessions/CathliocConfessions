@@ -828,21 +828,6 @@ async def meme(interaction: discord.Interaction):
 
     await interaction.response.send_message(data['url'])
 
-@bot.tree.command(name="pullupdate", description="Pulls an update from GitHub and restarts the bot (Silver only)")
-async def pullupdate(interaction: discord.Interaction):
-    if interaction.user.id != 970493985053356052:
-        await interaction.response.send_message("You are not silver bro")
-        return
-
-    await interaction.response.send_message("Pulling update from GitHub")
-    os.system('git pull')
-
-    await interaction.followup.send("Restarting the bot to apply updates...")
-    os.execv(sys.executable, ['python'] + sys.argv)
-
-@bot.tree.command(name="testcommand", description="DELETE")
-async def pullupdate(interaction: discord.Interaction):
-    await interaction.response.send_message("DELETE")
 
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
