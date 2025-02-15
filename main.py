@@ -409,7 +409,7 @@ async def balance(interaction: discord.Interaction):
 
     # Fetch data from the database for this user
     user_data = table.find_one(user_id=user)
-    user_balance = str(user_data['balance'])
+    user_balance = "{:,}".format(user_data['balance'])
 
     # Check if the user exists in the database
     if user_data is None:
