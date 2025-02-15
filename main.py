@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 import time
 import os
 import sys
-
 from discord.ext.commands import CommandOnCooldown
 
 COOKIES_FILE = "cookies.txt"

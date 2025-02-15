@@ -1,2 +1,8 @@
 
 .env
+
+users.db-wal
+
+users.db-shm
+
+users.db
