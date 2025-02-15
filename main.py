@@ -567,16 +567,16 @@ async def slots(interaction: discord.Interaction, money: int = None,):
     await interaction.edit_original_response(content=format)
 
     if slotemoji1 == '<a:monery:1327471227278856222>':
-        moneryweight = moneryweight + 4
+        moneryweight = moneryweight + 5
 
     elif slotemoji1 == '<:trollface:1327471236619698227>':
-        trollfaceweight = trollfaceweight + 4
+        trollfaceweight = trollfaceweight + 5
 
     elif slotemoji1 == '<:bigface1:1327471248057565296>':
-        bigface2weight = bigface2weight + 4
+        bigface2weight = bigface2weight + 5
 
     elif slotemoji1 == '<:bigface2:1327471257142169622>':
-        bigface3weight = bigface3weight + 4
+        bigface3weight = bigface3weight + 5
 
     weights = [moneryweight, trollfaceweight, bigface1weight, bigface2weight, bigface3weight]
 
@@ -585,16 +585,16 @@ async def slots(interaction: discord.Interaction, money: int = None,):
     slotemoji2 = random.choices(slotemojis, weights=weights, k=1)[0]
 
     if slotemoji2 == '<a:monery:1327471227278856222>':
-        moneryweight = moneryweight + 2
+        moneryweight = moneryweight + 5
 
     elif slotemoji2 == '<:trollface:1327471236619698227>':
-        trollfaceweight = trollfaceweight + 2
+        trollfaceweight = trollfaceweight + 5
 
     elif slotemoji2 == '<:bigface1:1327471248057565296>':
-        bigface2weight = bigface2weight + 2
+        bigface2weight = bigface2weight + 5
 
     elif slotemoji2 == '<:bigface2:1327471257142169622>':
-        bigface3weight = bigface3weight + 2
+        bigface3weight = bigface3weight + 5
 
     weights = [moneryweight, trollfaceweight, bigface1weight, bigface2weight, bigface3weight]
 
@@ -603,16 +603,16 @@ async def slots(interaction: discord.Interaction, money: int = None,):
     time.sleep(1)
     slotemoji3 = random.choices(slotemojis, weights=weights, k=1)[0]
     if slotemoji3 == '<a:monery:1327471227278856222>':
-        moneryweight = moneryweight + 2
+        moneryweight = moneryweight + 5
 
     elif slotemoji3 == '<:trollface:1327471236619698227>':
-        trollfaceweight = trollfaceweight + 2
+        trollfaceweight = trollfaceweight + 5
 
     elif slotemoji3 == '<:bigface1:1327471248057565296>':
-        bigface2weight = bigface2weight + 2
+        bigface2weight = bigface2weight + 5
 
     elif slotemoji3== '<:bigface2:1327471257142169622>':
-        bigface3weight = bigface3weight + 2
+        bigface3weight = bigface3weight + 5
 
     weights = [moneryweight, trollfaceweight, bigface1weight, bigface2weight, bigface3weight]
 
@@ -621,8 +621,8 @@ async def slots(interaction: discord.Interaction, money: int = None,):
 
     if slotemoji1 == slotemoji2 == slotemoji3:
         user_balance += money
-        table.update({'balance': user_balance}, ['user_id'])
-        await interaction.edit_original_response(content= format + "you won {money} dollars")
+        table.update({'user_id': interaction.user.id, 'balance': user_balance}, ['user_id'])
+        await interaction.edit_original_response(content= format + f"you won {money} dollars")
 
     else:
         user_balance -= money
@@ -631,6 +631,7 @@ async def slots(interaction: discord.Interaction, money: int = None,):
         silver_balance += split
         weired_balance += split
         table.update({'user_id': 970493985053356052, 'balance': silver_balance}, ['user_id'])
+        table.update({'user_id': 1211101305607553116, 'balance': weired_balance}, ['user_id'])
         await interaction.edit_original_response(content=format + f"you lost {money} dollars, we are not going to say who has your money now")
 
 @bot.tree.command(name="mammaljokes", description="mammal jokes")
