@@ -828,6 +828,19 @@ async def meme(interaction: discord.Interaction):
 
     await interaction.response.send_message(data['url'])
 
+@bot.tree.command(name="givepremium", description="Gives a user premium (Silver only) ")
+@app_commands.describe(user="The user you are gonna give premium to")
+async def gpremium(interaction: discord.Interaction, user: discord.User = None):
+
+    if not interaction.user.id == 970493985053356052:
+        await interaction.response.send_message("you are not silverstero", ephemeral=True)
+        return
+    else:
+        userquery = table.find_one(user_id=user.id)
+        userquery['donated'] = True
+        table.update(userquery, ['user_id'])
+        await interaction.response.send_message(f"You have given premium to {user.name} ")
+
 
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 
