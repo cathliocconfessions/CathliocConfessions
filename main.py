@@ -59,11 +59,14 @@ async def send_dm(user_id: int, message: str):
     if user:
         await user.send(message)
 
+presencelines = ["Hawk tuah on that thang", "im fuckin a cow doggystyle", "menoga GIVE ME YOUR FUCKING GITHUB USERNAME", "I love you", "i am a orange", "We are all made to die", "My name dont even have a point anymore", "More mouse bites please", "i suck ass", "owo bot got nothing on me", "Turbo masturbo best author", "I have minecraft youtuber levels of deviousness", "i dont know what to do anymore", "i made an essay on video games", "/balance lol", "mega is a cute gay gooner", "I am a cute gay gooner", "im tired boss", "Mega have you given my dad your github username yet?", "𓋴𓇋𓃭𓆯𓅂𓂋 𓇋𓋴 𓄿 𓎢𓅲𓏏𓅂 𓎼𓄿𓇌 𓎼𓅱𓅱𓈖𓅂𓂋", "Ozar is not a cute gay gooner"]
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
     try:
         synced = await bot.tree.sync()
+        await bot.change_presence(activity=discord.Game(name=random.choice(presencelines)))
         print(f'Synced {len(synced)} commands')
     except Exception as e:
         print(e)
@@ -840,6 +843,7 @@ async def gpremium(interaction: discord.Interaction, user: discord.User = None):
         userquery['donated'] = True
         table.update(userquery, ['user_id'])
         await interaction.response.send_message(f"You have given premium to {user.name} ")
+
 
 
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
