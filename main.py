@@ -96,29 +96,6 @@ async def ping(interaction: discord.Interaction):
         embed.add_field(name="Current ping ✅", value=f'{ping}ms', inline=True)
         await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="register", description="Register a user, Silver only")
-@app_commands.commands.describe(user="The user to Register")
-async def register(interaction: discord.Interaction, user: discord.User = None):
-    if interaction.user.id == 970493985053356052:
-        guild = interaction.guild
-        username = user.name
-        user_id = user.id
-        displayname = user.display_name
-
-        # Fetch member object and check for booster status
-        member = guild.get_member(user.id)
-        if member in guild.premium_subscribers:
-            donated = True
-        else:
-            donated = False
-
-        # Upsert or Update logic
-        table.upsert(
-            {'user_id': user_id, 'username': username, 'donated': donated, 'balance': 0, 'displayname': displayname, 'cusses': 0 },
-            ['user_id']  # Use 'user_id' as the unique key
-        )
-
-        await interaction.response.send_message(f"User {username}'s database record has been or added!")
 
 @bot.tree.command(name="lookup", description="Lookup a user. (silver only)")
 @app_commands.commands.describe(user="The user to lookup")
@@ -337,10 +314,9 @@ async def on_message_edit(before, after):
 @bot.tree.command(name="work", description="Work for some cash")
 @app_commands.checks.cooldown(1, 120.5)
 async def work(interaction: discord.Interaction):
-    user = table.find_one(user_id=interaction.user.id)
-
-
-
+    user_id = interaction.user.id
+    response = supabase.table('users').select('*').eq('id', user_id).execute()
+    user = response.data[0] if response.data else None
 
     givingcash = random.randint(45, 136)
     user['balance'] += givingcash
@@ -842,6 +818,65 @@ async def gpremium(interaction: discord.Interaction, user: discord.User = None):
             await interaction.response.send_message(f"You have given premium to {user.name} ")
         else:
             await interaction.response.send_message(f"User {user.name} not found in the database.")
+
+@bot.tree.command(name="removepremium", description="Removes a users premium (Silver only) ")
+@app_commands.describe(user="The user you are gonna remove premium from")
+async def rpremium(interaction: discord.Interaction, user: discord.User = None):
+
+    if not interaction.user.id == 970493985053356052:
+        await interaction.response.send_message("you are not silverstero", ephemeral=True)
+        return
+    else:
+        response = supabase.table('users').select('*').eq('user', user.id).execute()
+        userquery = response.data[0] if response.data else None
+        if userquery:
+            userquery['donated'] = False
+            supabase.table('users').update(userquery).eq('id', user.id).execute()
+            await interaction.response.send_message(f"You have removed premium from {user.name} ")
+        else:
+            await interaction.response.send_message(f"User {user.name} not found in the database.")
+
+@bot.tree.command(name="fileupload", description="Upload a file")
+@app_commands.describe(file="The file you are going to upload")
+async def fileupload(interaction: discord.Interaction, file: discord.Attachment = None):
+    await interaction.response.send_message("Uploading file...")
+
+    # Define the bucket name prefix and the file limit per bucket
+    bucket_prefix = "bucket_"
+    file_limit = 198  # Define your file limit per bucket
+
+    # Function to get the number of files in a bucket
+    def get_file_count(bucket_name):
+        response = supabase.storage.from_(bucket_name).list()
+        if isinstance(response, list) and response and 'error' in response[0]:
+            return -1
+        return len(response)
+
+    # Find the current bucket
+    bucket_index = 1
+    while True:
+        current_bucket = f"{bucket_prefix}{bucket_index}"
+        file_count = get_file_count(current_bucket)
+        if file_count == -1:
+            # Bucket does not exist, create it
+            supabase.storage.create_bucket(current_bucket, public=True)
+            break
+        elif file_count < file_limit:
+            # Found a bucket with space
+            break
+        else:
+            # Move to the next bucket
+            bucket_index += 1
+
+    # Upload the file to the current bucket
+    file_content = await file.read()
+    file_name = file.filename
+    response = supabase.storage.from_(current_bucket).upload(file_name, file_content)
+
+    url = f"https://tajkzdkaeapyuvdjgtsm.supabase.co/storage/v1/object/public/{current_bucket}//{file_name}"
+
+    await interaction.followup.send(f"File uploaded successfully {url}. Please keep the url safe you will not be able to find it again ")
+
 
 
 
