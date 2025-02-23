@@ -124,7 +124,7 @@ async def register(interaction: discord.Interaction, user: discord.User = None):
 @app_commands.commands.describe(user="The user to lookup")
 async def lookup(interaction: discord.Interaction, user: discord.User = None):
     if interaction.user.id == 970493985053356052:
-        user_id = interaction.user.id
+        user_id = user.id
         response = supabase.table('users').select('*').eq('id', user_id).execute()
         if not response:
             await interaction.response.send_message(f" {user.name} not found in the database!")
