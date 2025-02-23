@@ -1,10 +1,13 @@
 import json
 import random
 import re
+import asyncio
 from logging import exception, raiseExceptions
 
 import aiohttp
 import base64
+import os
+from supabase import create_client, Client
 import dataset
 import discord
 import requests
@@ -16,16 +19,26 @@ import os
 import sys
 from discord.ext.commands import CommandOnCooldown
 
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 COOKIES_FILE = "cookies.txt"
 
 queue = []
 onmessagedeletelist = ["bro forgot about digital footprint", "watch what you say next time!", "Your message cant be hidden from me", "yall screenshot this rq and post it to twitter.com", "nice try buddy boy", "you are gonna be haunted by this in the future", ]
 intents = discord.Intents.all()
 intents.members = True
-bot = commands.Bot(command_prefix="!", intents=intents)
-db = dataset.connect('sqlite:///users.db')
-table = db['users']
 load_dotenv()
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+supabase_url = os.getenv("SUPABASE_URL")
+supabase_key = os.getenv("SUPABASE_KEY")
+
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
+# Connect to the Supabase database
+
 
 
 def play_next(vc):
@@ -112,42 +125,13 @@ async def register(interaction: discord.Interaction, user: discord.User = None):
 async def lookup(interaction: discord.Interaction, user: discord.User = None):
     if interaction.user.id == 970493985053356052:
         user_id = interaction.user.id
-        userdata = table.find_one(user_id=user.id)
-        if not userdata:
+        response = supabase.table('users').select('*').eq('id', user_id).execute()
+        if not response:
             await interaction.response.send_message(f" {user.name} not found in the database!")
             return
         else:
-            await interaction.response.send_message(f"User data: {userdata}")
+            await interaction.response.send_message(f"User data: {response}")
 
-
-@bot.tree.command(name="fix", description="Fixes someone's query in the database. This might lag, so silver only 😘")
-@app_commands.describe(user="The user to fix")
-async def fixdb(interaction: discord.Interaction, user: discord.User = None):
-    if interaction.user.id == 970493985053356052:
-        guild = interaction.guild
-        username = user.name
-        user_id = user.id
-        displayname = user.display_name
-
-        # Fetch member object and check for booster status
-        member = guild.get_member(user.id)
-        if member.bot:
-            return
-
-        if member in guild.premium_subscribers:
-            donated = True
-        else:
-            donated = False
-
-        # Upsert or Update logic
-        table.upsert(
-            {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname},
-            ['user_id']  # Use 'user_id' as the unique key
-        )
-
-        await interaction.response.send_message(f"User {username}'s database record has been fixed (or added)!")
-    else:
-        await interaction.response.send_message(f"You are not allowed to use this command!")
 
 @bot.tree.command(name="add_all_to_db", description="Adds all members of the guild to the database.")
 async def add_all_to_db(interaction: discord.Interaction):
@@ -156,23 +140,16 @@ async def add_all_to_db(interaction: discord.Interaction):
         return
 
     else:
+        await interaction.response.defer()
+
         guild = interaction.guild
 
         for member in guild.members:
             username = member.name
             user_id = member.id
-            displayname = member.display_name
-            existing_user = table.find_one(user_id=user_id)
-
-            if existing_user:
-                balance = existing_user['balance']
-                lvlxp = existing_user['lvlxp']
-                lvl = existing_user['lvl']
-
-            else:
-                balance = 0
-                lvlxp = 0
-                lvl = 0
+            balance = 0
+            lvlxp = 0
+            lvl = 0
 
 
             if member in guild.premium_subscribers:
@@ -180,24 +157,21 @@ async def add_all_to_db(interaction: discord.Interaction):
             else:
                 donated = False
 
-            table.upsert(
-                {'user_id': user_id, 'username': username, 'donated': donated, 'balance': balance,
-                 'displayname': displayname, "lvlxp": lvlxp, "lvl": lvl},
-                ['user_id']  # Use 'user_id' as the unique key
-            )
+            response = (supabase.table('users').insert([{'id': user_id, 'username': username, 'donated': donated, 'balance': balance, "lvlxp": lvlxp, "lvl": lvl}])).execute()
 
-    await interaction.response.send_message("all of the users have been added to the db")
+
+    await interaction.edit_original_response(content="All members have been added to the database!")
 
 @bot.event
 async def on_member_join(member):
     username = member.name
     user_id = member.id
-    displayname = member.display_name
     donated = False
-    table.upsert(
-        {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname, 'balance': 0},
-        ['user_id']  # Use 'user_id' as the unique key
-    )
+    balance = 0
+    lvlxp = 0
+    lvl = 0
+    response = (supabase.table('users').insert([{'id': user_id, 'username': username, 'donated': donated,
+                                                 'balance': balance, "lvlxp": lvlxp, "lvl": lvl}])).execute()
 
 @bot.tree.command(name="fishjoke", description="Generates a random fish pun.")
 async def fishpun(interaction: discord.Interaction):
@@ -315,11 +289,12 @@ async def on_member_update(before: discord.Member, after: discord.Member):
                 username = after.name
                 displayname = after.display_name
                 donated = True
-                table.upsert(
-                    {'user_id': user_id, 'username': username, 'donated': donated, 'displayname': displayname},
-                    ['user_id']  # Use 'user_id' as the unique key
+                response = (
+                    supabase.table("users")
+                    .update({"donated": donated})
+                    .eq("id", user_id)
+                    .execute()
                 )
-
 
                 await send_dm(user_id, "Thanks for Donating (: You now have access to all of the features in the cathlioc confessions bot! 💖")
                 break
@@ -327,8 +302,6 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 @bot.event
 async def on_message_delete(message):
     channel = message.channel
-
-
 
     if channel and not message.author.bot:
         embed = discord.Embed(
@@ -379,9 +352,22 @@ async def work(interaction: discord.Interaction):
         colour=discord.Colour.green()
     )
 
+    user_id = interaction.user.id
+
+    response = supabase.table('users').select('balance').eq('id', user_id).execute()
+
+    if response.data:
+        user_balance = response.data[0]['balance']
+        new_balance = user_balance + givingcash
+
 
     if user:
-        table.update(user, ['user_id'])
+        response = (
+            supabase.table("users")
+            .update({"balance": new_balance})
+            .eq("id", user_id)
+            .execute()
+        )
 
     await interaction.response.send_message(embed=embed)
 
@@ -411,19 +397,19 @@ async def balance(interaction: discord.Interaction):
     user = interaction.user.id
 
     # Fetch data from the database for this user
-    user_data = table.find_one(user_id=user)
-    user_balance = "{:,}".format(user_data['balance'])
+
+    response = supabase.table('users').select('balance').eq('id', user).execute()
+
+    user_balance = response.data[0]['balance']
+
+
+    user_balance_formatted = "{:,}".format(user_balance)
 
     # Check if the user exists in the database
-    if user_data is None:
-
-
-        await interaction.response.send_message("Uh oh, Looks like you werent found in our database. Please ping Silverstero for help")
-        return
 
     embed = discord.Embed(
         title="Balance",
-        description=f"you have {user_balance} Dollars ",
+        description=f"you have {user_balance_formatted} Dollars ",
         color=0x00ff00  # Green color
     )
 
@@ -441,18 +427,19 @@ async def balance(interaction: discord.Interaction):
 async def coinflip(interaction: discord.Interaction, money: int = None, coinsides: str = None):
     user = interaction.user.id
 
-    silver = table.find_one(user_id=970493985053356052)
-    weired = table.find_one(user_id=1211101305607553116)
+    silver = supabase.table('users').select('*').eq('user_id', 970493985053356052).execute().data[0]
+    weired = supabase.table('users').select('*').eq('user_id', 1211101305607553116).execute().data[0]
 
     silver_balance = silver.get('balance', 0)
     weired_balance = weired.get('balance', 0)
 
     # Fetch data from the database for this user
-    user_data = table.find_one(user_id=user)
+    user_data = supabase.table('users').select('*').eq('user_id', user).execute().data[0]
 
     # Check if the user exists in the database
     if user_data is None:
-        await interaction.response.send_message("Uh oh, Looks like you werent found in our database. Please ping Silverstero for help")
+        await interaction.response.send_message(
+            "Uh oh, Looks like you werent found in our database. Please ping Silverstero for help")
         return
 
     user_balance = user_data.get('balance', 0)
@@ -473,10 +460,10 @@ async def coinflip(interaction: discord.Interaction, money: int = None, coinside
             title="You won zamn",
             description=f"you got {money} dollars",
             color=discord.Colour.green()
-            )
+        )
         await interaction.response.send_message(embed=embed)
         user_balance += money
-        table.update({'balance': user_balance}, ['user_id'])
+        supabase.table('users').update({'balance': user_balance}).eq('user_id', user).execute()
 
     else:
 
@@ -484,18 +471,18 @@ async def coinflip(interaction: discord.Interaction, money: int = None, coinside
             title="You lost damn",
             description=f"you lost {money} dollars",
             color=discord.Colour.red()
-            )
+        )
 
         await interaction.response.send_message(embed=embed)
         user_balance -= money
-        table.update({'balance': user_balance}, ['user_id'])
+        supabase.table('users').update({'balance': user_balance}).eq('user_id', user).execute()
         split = money / 2
 
         silver_balance += split
         weired_balance += split
 
-        table.update({'user_id': 970493985053356052, 'balance': silver_balance}, ['user_id'])
-        table.update({'user_id': 1211101305607553116, 'balance': weired_balance}, ['user_id'])
+        supabase.table('users').update({'balance': silver_balance}).eq('user_id', 970493985053356052).execute()
+        supabase.table('users').update({'balance': weired_balance}).eq('user_id', 1211101305607553116).execute()
 
 
 @bot.tree.command(name="slots", description="lets go gambling err awh dang it err awh dang it err awh dangit")
@@ -503,14 +490,14 @@ async def coinflip(interaction: discord.Interaction, money: int = None, coinside
 async def slots(interaction: discord.Interaction, money: int = None,):
     user = interaction.user.id
 
-    silver = table.find_one(user_id=970493985053356052)
-    weired = table.find_one(user_id=1211101305607553116)
+    silver = supabase.table('users').select('*').eq('user_id', 970493985053356052).execute().data[0]
+    weired = supabase.table('users').select('*').eq('user_id', 1211101305607553116).execute().data[0]
 
     silver_balance = silver.get('balance', 0)
     weired_balance = weired.get('balance', 0)
 
     # Fetch data from the database for this user
-    user_data = table.find_one(user_id=user)
+    user_data = supabase.table('users').select('*').eq('user_id', user).execute().data[0]
 
     # Check if the user exists in the database
     if user_data is None:
@@ -624,17 +611,17 @@ async def slots(interaction: discord.Interaction, money: int = None,):
 
     if slotemoji1 == slotemoji2 == slotemoji3:
         user_balance += money
-        table.update({'user_id': interaction.user.id, 'balance': user_balance}, ['user_id'])
+        supabase.table('users').update({'user_id': interaction.user.id, 'balance': user_balance}).eq('user_id', interaction.user.id).execute()
         await interaction.edit_original_response(content= format + f"you won {money} dollars")
 
     else:
         user_balance -= money
-        table.update({'balance': user_balance}, ['user_id'])
+        supabase.table('users').update({'balance': user_balance}).eq('user_id', interaction.user.id).execute()
         split = money / 2
         silver_balance += split
         weired_balance += split
-        table.update({'user_id': 970493985053356052, 'balance': silver_balance}, ['user_id'])
-        table.update({'user_id': 1211101305607553116, 'balance': weired_balance}, ['user_id'])
+        supabase.table('users').update({'user_id': 970493985053356052, 'balance': silver_balance}).eq('user_id', 970493985053356052).execute()
+        supabase.table('users').update({'user_id': 1211101305607553116, 'balance': weired_balance}).eq('user_id', 1211101305607553116).execute()
         await interaction.edit_original_response(content=format + f"you lost {money} dollars, we are not going to say who has your money now")
 
 @bot.tree.command(name="mammaljokes", description="mammal jokes")
@@ -758,38 +745,35 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-
-
-
     userid = message.author.id
-    userquery = table.find_one(user_id=userid)
+    response = supabase.table('users').select('*').eq('id', userid).execute()
+    userquery = response.data[0] if response.data else None
 
-    if userquery['lvlxp'] >= 350:
+    if userquery and userquery['lvlxp'] >= 350:
         userquery['lvl'] += 1
         userquery['lvlxp'] = 0
         userquery['balance'] += 10000
-        table.update(userquery, ['user_id'])
-
+        supabase.table('users').update(userquery).eq('id', userid).execute()
 
         await message.channel.send(f"Congrats {message.author}! You've leveled up to level {userquery['lvl']}! You also got 10,000 dollars or maybe the code bugged 🤷")
 
-
     if userquery:
         userquery['lvlxp'] += 1
-        table.update(userquery, ['user_id'])
+        supabase.table('users').update(userquery).eq('id', userid).execute()
 
 @bot.tree.command(name="lvl", description="Check your level")
 async def lvl(interaction: discord.Interaction):
     userid = interaction.user.id
-    userquery = table.find_one(user_id=userid)
+    response = supabase.table('users').select('*').eq('user_id', userid).execute()
+    userquery = response.data[0] if response.data else None
 
     if userquery:
         await interaction.response.send_message(f"Your level is {userquery['lvl']} and you have {userquery['lvlxp']} xp")
 
-
 @bot.tree.command(name="leaderboard", description="Check the leaderboard")
 async def leaderboard(interaction: discord.Interaction):
-    allusers = table.all()
+    response = supabase.table('users').select('*').execute()
+    allusers = response.data if response.data else []
 
     # Filter out users with None values for 'lvl'
     allusers = [user for user in allusers if user['lvl'] is not None and user['lvl'] >= 1]
@@ -801,25 +785,36 @@ async def leaderboard(interaction: discord.Interaction):
     for user in allusers:
         leaderboard.append(f"{user['username']} - Level {user['lvl']}")
 
-
-    await interaction.response.send_message("The level leaderboard \n".join(leaderboard))
+    await interaction.response.send_message("The level leaderboard\n" + "\n".join(leaderboard))
 
 @bot.tree.command(name="givecash", description="give cash to someone")
 @app_commands.describe(money="how much money are you gonna give?")
-@app_commands.commands.describe(user="The user you are gonna give money to")
+@app_commands.describe(user="The user you are gonna give money to")
 async def givecash(interaction: discord.Interaction, money: int = None, user: discord.User = None):
-    userquery = table.find_one(user_id=interaction.user.id)
-    targetquery = table.find_one(user_id=user.id)
+    user_id = interaction.user.id
+    target_id = user.id
 
-    if userquery['balance'] < money:
-        await interaction.response.send_message("You dont have enough cash bucko")
+    # Fetch user and target data from Supabase
+    user_response = supabase.table('users').select('balance').eq('id', user_id).execute()
+    target_response = supabase.table('users').select('balance').eq('id', target_id).execute()
+
+    if not user_response.data or not target_response.data:
+        await interaction.response.send_message("User or target not found in the database.")
         return
 
-    userquery['balance'] -= money
-    targetquery['balance'] += money
+    user_balance = user_response.data[0]['balance']
+    target_balance = target_response.data[0]['balance']
 
-    table.update(userquery, ['user_id'])
-    table.update(targetquery, ['user_id'])
+    if user_balance < money:
+        await interaction.response.send_message("You don't have enough cash bucko")
+        return
+
+    # Update balances
+    new_user_balance = user_balance - money
+    new_target_balance = target_balance + money
+
+    supabase.table('users').update({'balance': new_user_balance}).eq('id', user_id).execute()
+    supabase.table('users').update({'balance': new_target_balance}).eq('id', target_id).execute()
 
     await interaction.response.send_message(f"You gave {money} to {user.name}")
 
@@ -839,10 +834,14 @@ async def gpremium(interaction: discord.Interaction, user: discord.User = None):
         await interaction.response.send_message("you are not silverstero", ephemeral=True)
         return
     else:
-        userquery = table.find_one(user_id=user.id)
-        userquery['donated'] = True
-        table.update(userquery, ['user_id'])
-        await interaction.response.send_message(f"You have given premium to {user.name} ")
+        response = supabase.table('users').select('*').eq('user', user.id).execute()
+        userquery = response.data[0] if response.data else None
+        if userquery:
+            userquery['donated'] = True
+            supabase.table('users').update(userquery).eq('id', user.id).execute()
+            await interaction.response.send_message(f"You have given premium to {user.name} ")
+        else:
+            await interaction.response.send_message(f"User {user.name} not found in the database.")
 
 
 
